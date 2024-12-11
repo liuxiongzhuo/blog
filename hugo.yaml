@@ -1,0 +1,34 @@
+languageCode: 'zh-CN'
+title: '0031400 的博客'
+theme: ["PaperMod"]
+params:
+  title: '0031400 的博客'
+  description: '分享生活 学习'
+  keywords: ['大学','学习','生活','博客']
+  author: '0031400'
+  DateFormat: '2006-01-02'
+  ShowCodeCopyButtons: true
+  homeInfoParams:
+    Title: '0031400 的博客'
+    Content: '分享生活 学习'
+  socialIcons:
+    - name: github
+      url: 'https://github.com/liuxiongzhuo'
+    - name: email
+      url: 'mailto://0031400@0031400.xyz'
+publishDir: docs
+menu:
+  main:
+  - identifier: archives
+    name: 归档
+    url: /archives/
+    weight: 10
+  - identifier: search
+    name: 搜索
+    url: /search/
+    weight: 40
+outputs:
+  home:
+    - HTML
+    - RSS
+    - JSON 
