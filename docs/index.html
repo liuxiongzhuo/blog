@@ -10,18 +10,18 @@
 <meta name="keywords" content="大学, 学习, 生活, 博客">
 <meta name="description" content="分享生活 学习">
 <meta name="author" content="0031400">
-<link rel="canonical" href="/">
+<link rel="canonical" href="https://blog.0031400.xyz/">
 <link crossorigin="anonymous" href="/assets/css/stylesheet.css" rel="preload stylesheet" as="style">
-<link rel="icon" href="/favicon.ico">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="mask-icon" href="/safari-pinned-tab.svg">
+<link rel="icon" href="https://blog.0031400.xyz/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://blog.0031400.xyz/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://blog.0031400.xyz/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://blog.0031400.xyz/apple-touch-icon.png">
+<link rel="mask-icon" href="https://blog.0031400.xyz/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
-<link rel="alternate" type="application/rss+xml" href="/index.xml">
-<link rel="alternate" type="application/json" href="/index.json">
-<link rel="alternate" hreflang="en" href="/">
+<link rel="alternate" type="application/rss+xml" href="https://blog.0031400.xyz/index.xml">
+<link rel="alternate" type="application/json" href="https://blog.0031400.xyz/index.json">
+<link rel="alternate" hreflang="en" href="https://blog.0031400.xyz/">
 <noscript>
     <style>
         #theme-toggle,
@@ -58,7 +58,7 @@
         }
 
     </style>
-</noscript><meta property="og:url" content="/">
+</noscript><meta property="og:url" content="https://blog.0031400.xyz/">
   <meta property="og:site_name" content="0031400 的博客">
   <meta property="og:title" content="0031400 的博客">
   <meta property="og:description" content="分享生活 学习">
@@ -73,9 +73,9 @@
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": "0031400 的博客",
-  "url": "/",
+  "url": "https://blog.0031400.xyz/",
   "description": "分享生活 学习",
-  "logo": "/favicon.ico",
+  "logo": "https://blog.0031400.xyz/favicon.ico",
   "sameAs": [
       "https://github.com/liuxiongzhuo", "mailto://0031400@0031400.xyz"
   ]
@@ -98,7 +98,7 @@
 <header class="header">
     <nav class="nav">
         <div class="logo">
-            <a href="/" accesskey="h" title="0031400 的博客 (Alt + H)">0031400 的博客</a>
+            <a href="https://blog.0031400.xyz/" accesskey="h" title="0031400 的博客 (Alt + H)">0031400 的博客</a>
             <div class="logo-switches">
                 <button id="theme-toggle" accesskey="t" title="(Alt + T)">
                     <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
@@ -124,12 +124,12 @@
         </div>
         <ul id="menu">
             <li>
-                <a href="/archives/" title="归档">
+                <a href="https://blog.0031400.xyz/archives/" title="归档">
                     <span>归档</span>
                 </a>
             </li>
             <li>
-                <a href="/search/" title="搜索 (Alt &#43; /)" accesskey=/>
+                <a href="https://blog.0031400.xyz/search/" title="搜索 (Alt &#43; /)" accesskey=/>
                     <span>搜索</span>
                 </a>
             </li>
@@ -170,20 +170,27 @@
 
 <article class="post-entry"> 
   <header class="entry-header">
-    <h2 class="entry-hint-parent">1
+    <h2 class="entry-hint-parent">hugo 创建博客网站
     </h2>
   </header>
   <div class="entry-content">
-    <p>今天
-</p>
+    <p>今天使用 hugo 的 paperMod 主题做博客放在 github pages 上面。下面我来介绍一下我的配置过程。
+安装 hugo https://github.com/gohugoio/hugo 我电脑是 win11 系统 ，我在 github hugo 官网下载 hugo 的 exe 可执行文件 。
+把 hugo 的可执行文件添加到系统的环境变量 。
+hugo new site 网站名字创建一个 hugo 网站项目 。
+git clone https://github.com/adityatelange/hugo-PaperMod themes/PaperMod --depth=1 进入项目目录 ，安装 paperMod 主题 。
+因为我是默认使用 yaml 配置模式 ，所以我使用 yaml 语法 ，在 hugo.yaml 添加 theme: [&#34;PaperMod&#34;]
+我贴一贴我目前的配置文件
+baseUrl: &#39;https://blog.0031400.xyz&#39; # 网站地址 ，也可以省略 ，此时使用相对路径 languageCode: &#39;zh-CN&#39; # 网站语言 title: &#39;0031400 的博客&#39; # 网站题目 theme: [&#34;PaperMod&#34;] # 网站主题 params: # 下面是参数 title: &#39;0031400 的博客&#39; # 显示在 html head 的 title description: &#39;分享生活 学习&#39; # 显示在 html head 的 description keywords: [&#39;大学&#39;,&#39;学习&#39;,&#39;生活&#39;,&#39;博客&#39;] # 显示在 html head 的 关键词 author: &#39;0031400&#39; # 显示在 html head 的 作者 DateFormat: &#39;2006-01-02&#39; # 网站内日期显示格式 ShowCodeCopyButtons: true # 代码块显示复制按钮 homeInfoParams: # paperMod 的配置 ，分三种 ，我选择 homeInfo Title: &#39;0031400 的博客&#39; # homeInfo 的 title Content: &#39;分享生活 学习&#39; # homeInfo 的 显示内容 socialIcons: # homeInfo 显示的社交图标 - name: github url: &#39;https://github.com/liuxiongzhuo&#39; - name: email url: &#39;mailto://0031400@0031400.xyz&#39; assets: # 在 github page 发布的必要设置 ，我也不懂 ，如果没有这个 ，是显示不了 css 的 。 disableFingerprinting: true publishDir: docs # 编译输出目录 ，我是在 github page ，为了方便 ，我设置为 docs menu: # 菜单栏 main: - identifier: archives name: 归档 url: /archives/ weight: 10 - identifier: search name: 搜索 url: /search/ weight: 40 outputs: # 设置搜索页要求的 home: - HTML - RSS - JSON 在 content 的 posts 里面的文章是显示在网页首页的文章 。
+...</p>
   </div>
   <footer class="entry-footer"><span title='2024-12-11 12:58:38 +0800 CST'>2024-12-11</span>&nbsp;·&nbsp;0031400</footer>
-  <a class="entry-link" aria-label="post link to 1" href="/posts/1/"></a>
+  <a class="entry-link" aria-label="post link to hugo 创建博客网站" href="https://blog.0031400.xyz/posts/1/"></a>
 </article>
     </main>
     
 <footer class="footer">
-        <span>&copy; 2024 <a href="/">0031400 的博客</a></span> · 
+        <span>&copy; 2024 <a href="https://blog.0031400.xyz/">0031400 的博客</a></span> · 
 
     <span>
         Powered by
