@@ -17,6 +17,8 @@ params:
       url: 'https://github.com/liuxiongzhuo'
     - name: email
       url: 'mailto://0031400@0031400.xyz'
+  assets:
+    disableFingerprinting: true
 publishDir: docs
 menu:
   main:
