@@ -2,21 +2,21 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>/</loc>
+    <loc>https://blog.0031400.xyz/</loc>
     <lastmod>2024-12-11T12:58:38+08:00</lastmod>
   </url><url>
-    <loc>/posts/1/</loc>
+    <loc>https://blog.0031400.xyz/posts/1/</loc>
     <lastmod>2024-12-11T12:58:38+08:00</lastmod>
   </url><url>
-    <loc>/posts/</loc>
+    <loc>https://blog.0031400.xyz/posts/</loc>
     <lastmod>2024-12-11T12:58:38+08:00</lastmod>
   </url><url>
-    <loc>/categories/</loc>
+    <loc>https://blog.0031400.xyz/categories/</loc>
   </url><url>
-    <loc>/tags/</loc>
+    <loc>https://blog.0031400.xyz/tags/</loc>
   </url><url>
-    <loc>/archives/</loc>
+    <loc>https://blog.0031400.xyz/archives/</loc>
   </url><url>
-    <loc>/search/</loc>
+    <loc>https://blog.0031400.xyz/search/</loc>
   </url>
 </urlset>
