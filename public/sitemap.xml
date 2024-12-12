@@ -2,30 +2,30 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>/</loc>
+    <loc>http://[2a14:67c0:104::3c]/</loc>
     <lastmod>2024-12-11T21:04:08+08:00</lastmod>
   </url><url>
-    <loc>/posts/</loc>
+    <loc>http://[2a14:67c0:104::3c]/posts/</loc>
     <lastmod>2024-12-11T21:04:08+08:00</lastmod>
   </url><url>
-    <loc>/posts/4/</loc>
+    <loc>http://[2a14:67c0:104::3c]/posts/4/</loc>
     <lastmod>2024-12-11T21:04:08+08:00</lastmod>
   </url><url>
-    <loc>/posts/3/</loc>
+    <loc>http://[2a14:67c0:104::3c]/posts/3/</loc>
     <lastmod>2024-12-11T17:22:46+08:00</lastmod>
   </url><url>
-    <loc>/posts/2/</loc>
+    <loc>http://[2a14:67c0:104::3c]/posts/2/</loc>
     <lastmod>2024-12-11T12:58:38+08:00</lastmod>
   </url><url>
-    <loc>/posts/1/</loc>
+    <loc>http://[2a14:67c0:104::3c]/posts/1/</loc>
     <lastmod>2024-12-11T12:58:38+08:00</lastmod>
   </url><url>
-    <loc>/categories/</loc>
+    <loc>http://[2a14:67c0:104::3c]/categories/</loc>
   </url><url>
-    <loc>/tags/</loc>
+    <loc>http://[2a14:67c0:104::3c]/tags/</loc>
   </url><url>
-    <loc>/archives/</loc>
+    <loc>http://[2a14:67c0:104::3c]/archives/</loc>
   </url><url>
-    <loc>/search/</loc>
+    <loc>http://[2a14:67c0:104::3c]/search/</loc>
   </url>
 </urlset>
