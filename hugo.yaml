@@ -2,7 +2,24 @@ baseUrl: 'https://blog.0031400.xyz'
 languageCode: 'zh-CN'
 title: '0031400 的博客'
 theme: ["PaperMod"]
+markup:
+  goldmark:
+    extensions:
+      passthrough:
+        delimiters:
+          block:
+          - - \[
+            - \]
+          - - $$
+            - $$
+          inline:
+          - - \(
+            - \)
+          - - $
+            - $
+        enable: true
 params:
+  math: true
   title: '0031400 的博客'
   description: '分享生活 学习'
   keywords: ['大学','学习','生活','博客']
@@ -18,8 +35,7 @@ params:
     - name: email
       url: 'mailto://0031400@0031400.xyz'
   assets:
-    disableFingerprinting: true
-publishDir: docs
+    favicon: "favicon.ico"
 menu:
   main:
   - identifier: archives

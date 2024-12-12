@@ -1,21 +1,75 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
-    <title>Posts on 0031400 的博客</title>
-    <link>https://blog.0031400.xyz/posts/</link>
-    <description>Recent content in Posts on 0031400 的博客</description>
+    <title>0031400 的博客</title>
+    <link>https://blog.0031400.xyz/</link>
+    <description>Recent content on 0031400 的博客</description>
     <generator>Hugo -- 0.136.4</generator>
     <language>zh-CN</language>
-    <lastBuildDate>Wed, 11 Dec 2024 12:58:38 +0800</lastBuildDate>
-    <atom:link href="https://blog.0031400.xyz/posts/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Wed, 11 Dec 2024 21:04:08 +0800</lastBuildDate>
+    <atom:link href="https://blog.0031400.xyz/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>高等代数</title>
+      <link>https://blog.0031400.xyz/posts/4/</link>
+      <pubDate>Wed, 11 Dec 2024 21:04:08 +0800</pubDate>
+      <guid>https://blog.0031400.xyz/posts/4/</guid>
+      <description>&lt;p&gt;&lt;img loading=&#34;lazy&#34; src=&#34;https://file.0031400.xyz/i/1733922547140.png&#34;&gt;
+&lt;img loading=&#34;lazy&#34; src=&#34;https://file.0031400.xyz/i/1733922602140.png&#34;&gt;
+&lt;img loading=&#34;lazy&#34; src=&#34;https://file.0031400.xyz/i/1733922646140.png&#34;&gt;
+AX=c 是一个未知数2个，方程3个的方程组 ，不一定有解 ，这个问题相当于； $a_1$ , $a_2$ 作为基构成了一个三维空间的一个平面 ，如果 c 在这个平面上 ，那么有解 ，如果不在 ，则无解 。为了寻找最贴合的解 ，首先 ，我们定义什么来刻画贴合程度 ， 面上的点到 c 的距离 ，因为是三维的 ，就是三个坐标差 。
+&lt;img loading=&#34;lazy&#34; src=&#34;https://file.0031400.xyz/i/1733922987147.png&#34;&gt;
+左边式子就是说面上的点和 c 连成的直线和面垂直 ，此时距离最小 ，转化一下得到右边式子 ，发现右边式子有解 ，而且根据前面的推断 ，它是最吻合的 。
+&lt;img loading=&#34;lazy&#34; src=&#34;https://file.0031400.xyz/i/1733923173139.png&#34;&gt;
+(1) 的右边就是求最吻合的解，而左边就是垂直的条件 ，该题主要通过勾股定理证大小关系 ，具体就是证明垂直关系 。&lt;/p&gt;
+&lt;p&gt;(2) 是齐次方程组同解 ，证法就是这边的解是那边的解 ，一一对应 。两个矩阵的秩相等 ，需要构造两个不等式 。从 (1) 题的左边方程的增广矩阵推导 ，一个不等式通过矩阵合并后的秩不会变小得到 ，就是增广矩阵的意思 。同时 (2) 左边证明了两个矩阵式同秩的 。另一个不等式从增广矩阵可以拆分成矩阵相乘得到 ，而矩阵相乘秩不变大 。
+&lt;img loading=&#34;lazy&#34; src=&#34;https://file.0031400.xyz/i/1733923863148.png&#34;&gt;
+从垂直条件得到比例 ，再从比例推导到勾股定理 。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>学习推荐</title>
+      <link>https://blog.0031400.xyz/posts/3/</link>
+      <pubDate>Wed, 11 Dec 2024 17:22:46 +0800</pubDate>
+      <guid>https://blog.0031400.xyz/posts/3/</guid>
+      <description>&lt;p&gt;go 语言教程 &lt;a href=&#34;https://golang.halfiisland.com/&#34;&gt;https://golang.halfiisland.com/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;cs 自学指南 &lt;a href=&#34;https://csdiy.wiki/&#34;&gt;https://csdiy.wiki/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;算法教程 &lt;a href=&#34;https://www.hello-algo.com/&#34;&gt;https://www.hello-algo.com/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;微软 ai 教程 &lt;a href=&#34;https://github.com/microsoft/ai-edu/&#34;&gt;https://github.com/microsoft/ai-edu/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;python fastapi 教程 &lt;a href=&#34;https://fastapi.tiangolo.com/zh/tutorial/&#34;&gt;https://fastapi.tiangolo.com/zh/tutorial/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;英语故事阅读 &lt;a href=&#34;https://learnenglish.britishcouncil.org/general-english/story-zone&#34;&gt;https://learnenglish.britishcouncil.org/general-english/story-zone&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;英语故事阅读 &lt;a href=&#34;https://vocab.today/reader/&#34;&gt;https://vocab.today/reader/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;英语新闻阅读 &lt;a href=&#34;https://language.chinadaily.com.cn/bbc/&#34;&gt;https://language.chinadaily.com.cn/bbc/&lt;/a&gt;&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>cloudflare saas 加速站点</title>
+      <link>https://blog.0031400.xyz/posts/2/</link>
+      <pubDate>Wed, 11 Dec 2024 12:58:38 +0800</pubDate>
+      <guid>https://blog.0031400.xyz/posts/2/</guid>
+      <description>&lt;p&gt;需要 2 个域名 ，一个托管到 cloudflare ，一个不能托管到 cloudflare 。给访问者显示的是主域名 ，用来回源的是工具域名 。接下来我展示 origin.lxz.cloudns.be 是工具域名 ，blog.0031400.xyz 是主域名 。
+&lt;img loading=&#34;lazy&#34; src=&#34;https://file.0031400.xyz/i/1733903696517.png&#34;&gt;
+origin.lxz.cloudns.be 解析到网站的 ip 地址 ，或者域名 ，开启 cdn 代理 。
+&lt;img loading=&#34;lazy&#34; src=&#34;https://file.0031400.xyz/i/1733903871530.png&#34;&gt;
+ssl/tls 的自定义主机名选项栏 ，添加回退源 origin.lxz.cloudns.be
+&lt;img loading=&#34;lazy&#34; src=&#34;https://file.0031400.xyz/i/1733903989521.png&#34;&gt;
+添加自定义主机名
+&lt;img loading=&#34;lazy&#34; src=&#34;https://file.0031400.xyz/i/1733904055517.png&#34;&gt;
+填写主域名 ，我的 blog.0031400.xyz 已经在使用 ，现在用 test.0031400.xyz 代替演示 。
+&lt;img loading=&#34;lazy&#34; src=&#34;https://file.0031400.xyz/i/1733904140517.png&#34;&gt;
+添加两条 txt 记录在主域名的 dns 系统
+&lt;img loading=&#34;lazy&#34; src=&#34;https://file.0031400.xyz/i/1733904213526.png&#34;&gt;
+等待结果完成
+&lt;img loading=&#34;lazy&#34; src=&#34;https://file.0031400.xyz/i/1733904301517.png&#34;&gt;
+主域名指向一个域名 ，这个域名托管平台无要求 ，这样做是为了实现国内外分流加速 。&lt;/p&gt;
+&lt;p&gt;我这里主域名指向 cdn.0031400.xyz ，cdn.0031400.xyz 分两条 ，默认指向一个 cloudflare 的优选 ip ，境外线路指向 1.0.0.5
+&lt;img loading=&#34;lazy&#34; src=&#34;https://file.0031400.xyz/i/1733904539521.png&#34;&gt;
+成果看 ，是不错的 ，解析失败的那些地区是因为我昨晚换了一个 dns 解析 ，目前存在缓存 。&lt;/p&gt;</description>
+    </item>
     <item>
       <title>hugo 创建博客网站</title>
       <link>https://blog.0031400.xyz/posts/1/</link>
       <pubDate>Wed, 11 Dec 2024 12:58:38 +0800</pubDate>
       <guid>https://blog.0031400.xyz/posts/1/</guid>
       <description>&lt;p&gt;今天使用 hugo 的 paperMod 主题做博客放在 github pages 上面。下面我来介绍一下我的配置过程。&lt;/p&gt;
-&lt;h3 id=&#34;安装-hugo&#34;&gt;安装 hugo&lt;/h3&gt;
-&lt;p&gt;&lt;a href=&#34;https://github.com/gohugoio/hugo&#34;&gt;https://github.com/gohugoio/hugo&lt;/a&gt; 我电脑是 win11 系统 ，我在 github hugo 官网下载 hugo 的 exe 可执行文件 。&lt;/p&gt;
+&lt;p&gt;安装 hugo &lt;a href=&#34;https://github.com/gohugoio/hugo&#34;&gt;https://github.com/gohugoio/hugo&lt;/a&gt; 我电脑是 win11 系统 ，我在 github hugo 官网下载 hugo 的 exe 可执行文件 。&lt;/p&gt;
 &lt;p&gt;把 hugo 的可执行文件添加到系统的环境变量 。&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;hugo new site 网站名字&lt;/code&gt;创建一个 hugo 网站项目 。&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;git clone https://github.com/adityatelange/hugo-PaperMod themes/PaperMod --depth=1&lt;/code&gt; 进入项目目录 ，安装 paperMod 主题 。&lt;/p&gt;
