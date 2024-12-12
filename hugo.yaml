@@ -36,6 +36,7 @@ params:
       url: 'mailto://0031400@0031400.xyz'
   assets:
     favicon: "favicon.ico"
+    disableFingerprinting: true
 menu:
   main:
   - identifier: archives
