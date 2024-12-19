@@ -34,7 +34,7 @@ params:
     - name: email
       url: 'mailto://0031400@0031400.xyz'
   assets:
-    favicon: "favicon.ico"
+    favicon: "https://file.0031400.xyz/i/1734402231171.ico"
     disableFingerprinting: true
 menu:
   main:
