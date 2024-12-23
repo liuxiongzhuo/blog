@@ -1,5 +1,5 @@
 languageCode: 'zh-CN'
-title: '流星雨的站点'
+title: '流星雨的博客'
 theme: ["PaperMod"]
 markup:
   goldmark:
@@ -19,14 +19,14 @@ markup:
         enable: true
 params:
   math: true
-  title: '流星雨的站点'
+  title: '流星雨的博客'
   description: '分享生活 学习'
   keywords: ['大学','学习','生活','博客']
   author: '0031400'
   DateFormat: '2006-01-02'
   ShowCodeCopyButtons: true
   homeInfoParams:
-    Title: '流星雨的站点'
+    Title: '流星雨的博客'
     Content: '分享生活 学习'
   socialIcons:
     - name: github
