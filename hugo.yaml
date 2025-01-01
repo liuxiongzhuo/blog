@@ -34,7 +34,7 @@ params:
     - name: email
       url: 'mailto://0031400@0031400.xyz'
   assets:
-    favicon: "https://blog.meteorrain.site/1734402231171.ico"
+    favicon: "https://blog.meteorrain.site/static/favicon.ico"
     disableFingerprinting: true
 menu:
   main:
