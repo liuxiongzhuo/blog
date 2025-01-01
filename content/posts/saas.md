@@ -13,7 +13,7 @@ ssl/tls 的自定义主机名选项栏 ，添加回退源 origin.lxz.cloudns.be
 添加自定义主机名
 ![1733904055517.png](https://image.meteorrain.site/file/58860841-f47b-4811-b328-5d873856a8b7.png)
 填写主域名 ，我的 blog.0031400.xyz 已经在使用 ，现在用 test.0031400.xyz 代替演示 。
-![1733904140517.png](https://image.meteorrain.site/file/68d67504-373b-430c-9f52-f304d6523e99.png)
+![1733904140517.png](https://image.meteorrain.site/file/6baf1ec7-e26d-41af-87a3-4c29a513d4eb.png)
 添加两条 txt 记录在主域名的 dns 系统
 ![1733904213526.png](https://image.meteorrain.site/file/820c9a57-8be0-4b45-a755-655d86a9fb35.png)
 等待结果完成
