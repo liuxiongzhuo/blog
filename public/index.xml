@@ -6,8 +6,28 @@
     <description>Recent content on 流星雨的博客</description>
     <generator>Hugo -- 0.136.4</generator>
     <language>zh-CN</language>
-    <lastBuildDate>Wed, 11 Dec 2024 17:22:46 +0800</lastBuildDate>
+    <lastBuildDate>Thu, 02 Jan 2025 15:41:08 +0800</lastBuildDate>
     <atom:link href="/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>HugoSshGit自动部署</title>
+      <link>/posts/4/</link>
+      <pubDate>Thu, 02 Jan 2025 15:41:08 +0800</pubDate>
+      <guid>/posts/4/</guid>
+      <description>&lt;p&gt;应用需求:&lt;/p&gt;
+&lt;p&gt;本地使用 hugo 制作静态网站 , git push 到 github , 然后 ssh 登录远程主机 , 到对应目录执行 git pull 命令 .&lt;/p&gt;
+&lt;p&gt;使用方式:&lt;/p&gt;
+&lt;p&gt;把该脚本放到 hugo 项目的根目录 , 命名为 deploy.bat 等 , 命令行执行 ./deploy.bat , 或者鼠标双击打开 .&lt;/p&gt;
+&lt;p&gt;使用注意事项:&lt;/p&gt;
+&lt;p&gt;需要安装 putty 软件 , 需要把对应的 plink.exe 目录和 ssh 账号密码主机以及远程主机的 hugo 网站目录填成自己的 , 需要在根目录的 .gitignore 文件添加脚本文件名 , 防止 ssh 账号密码泄露&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-bat&#34; data-lang=&#34;bat&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;rd&lt;/span&gt; /q /s .\public
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;hugo
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;git add .
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;git commit -m &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&lt;/span&gt;%DATE%&lt;span style=&#34;color:#e6db74&#34;&gt; &lt;/span&gt;%TIME%&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;git push
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;cd&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;你的plink.exe所在位置&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;echo&lt;/span&gt; | plink.exe -pw &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;ssh密码&amp;#34;&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;ssh账号&amp;#34;&lt;/span&gt;@&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;远程主机&amp;#34;&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;cd &amp;#34;&lt;/span&gt;远程主机的 hugo 目录&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;;git pull&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;</description>
+    </item>
     <item>
       <title>学习推荐</title>
       <link>/posts/3/</link>

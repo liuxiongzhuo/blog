@@ -181,6 +181,24 @@
 
 <article class="post-entry"> 
   <header class="entry-header">
+    <h2 class="entry-hint-parent">HugoSshGit自动部署
+    </h2>
+  </header>
+  <div class="entry-content">
+    <p>应用需求:
+本地使用 hugo 制作静态网站 , git push 到 github , 然后 ssh 登录远程主机 , 到对应目录执行 git pull 命令 .
+使用方式:
+把该脚本放到 hugo 项目的根目录 , 命名为 deploy.bat 等 , 命令行执行 ./deploy.bat , 或者鼠标双击打开 .
+使用注意事项:
+需要安装 putty 软件 , 需要把对应的 plink.exe 目录和 ssh 账号密码主机以及远程主机的 hugo 网站目录填成自己的 , 需要在根目录的 .gitignore 文件添加脚本文件名 , 防止 ssh 账号密码泄露
+rd /q /s .\public hugo git add . git commit -m &#34;%DATE% %TIME%&#34; git push cd &#34;你的plink.exe所在位置&#34; echo | plink.exe -pw &#34;ssh密码&#34; &#34;ssh账号&#34;@&#34;远程主机&#34; &#34;cd &#34;远程主机的 hugo 目录&#34;;git pull&#34; </p>
+  </div>
+  <footer class="entry-footer"><span title='2025-01-02 15:41:08 +0800 CST'>2025-01-02</span>&nbsp;·&nbsp;0031400</footer>
+  <a class="entry-link" aria-label="post link to HugoSshGit自动部署" href="/posts/4/"></a>
+</article>
+
+<article class="post-entry"> 
+  <header class="entry-header">
     <h2 class="entry-hint-parent">学习推荐
     </h2>
   </header>
