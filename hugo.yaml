@@ -22,7 +22,7 @@ params:
   title: '流星雨的博客'
   description: '分享生活 学习'
   keywords: ['大学','学习','生活','博客']
-  author: '0031400'
+  author: 'meteorrain'
   DateFormat: '2006-01-02'
   ShowCodeCopyButtons: true
   homeInfoParams:
@@ -32,7 +32,7 @@ params:
     - name: github
       url: 'https://github.com/liuxiongzhuo'
     - name: email
-      url: 'mailto://0031400@0031400.xyz'
+      url: 'mailto://meteorrain@meteorrain.site'
   assets:
     favicon: "https://img.meteorrain.site/i/BQACAgUAAxkBAAPiZ3YIIZaH1AqFJBTuvqrIx-_faxQAAj8TAAKdMLFXxzqRgzk8lKY2BA"
     disableFingerprinting: true
