@@ -36,6 +36,7 @@ params:
   assets:
     favicon: "https://img.meteorrain.site/i/BQACAgUAAxkBAAPiZ3YIIZaH1AqFJBTuvqrIx-_faxQAAj8TAAKdMLFXxzqRgzk8lKY2BA"
     disableFingerprinting: true
+publishDir: docs
 menu:
   main:
   - identifier: archives
