@@ -6,8 +6,28 @@
     <description>Recent content on 流星雨的博客</description>
     <generator>Hugo -- 0.136.4</generator>
     <language>zh-CN</language>
-    <lastBuildDate>Thu, 02 Jan 2025 15:41:08 +0800</lastBuildDate>
+    <lastBuildDate>Fri, 03 Jan 2025 13:24:08 +0800</lastBuildDate>
     <atom:link href="/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>tgwebhooks设置</title>
+      <link>/posts/5/</link>
+      <pubDate>Fri, 03 Jan 2025 13:24:08 +0800</pubDate>
+      <guid>/posts/5/</guid>
+      <description>&lt;p&gt;&lt;strong&gt;本文来源于 grammy webhooks 官方教程 &lt;a href=&#34;https://grammy.dev/zh/guide/deployment-types&#34;&gt;https://grammy.dev/zh/guide/deployment-types&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;使用网站管理 &lt;a href=&#34;https://telegram.tools/webhook-manager&#34;&gt;https://telegram.tools/webhook-manager&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;img alt=&#34;BQACAgUAAxkBAAICE2d3drdhnhCPe1qGJirB70sJcNqjAAKYFAACwai5V9HJzCVvI6YoNgQ&#34; loading=&#34;lazy&#34; src=&#34;https://img.meteorrain.site/i/BQACAgUAAxkBAAICE2d3drdhnhCPe1qGJirB70sJcNqjAAKYFAACwai5V9HJzCVvI6YoNgQ&#34;&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;hono 代码发送设置信息 , 注意只用发送一次&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-ts&#34; data-lang=&#34;ts&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;const&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;endpoint&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;你的url&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;bot&lt;/span&gt;.&lt;span style=&#34;color:#a6e22e&#34;&gt;api&lt;/span&gt;.&lt;span style=&#34;color:#a6e22e&#34;&gt;setWebhook&lt;/span&gt;(&lt;span style=&#34;color:#a6e22e&#34;&gt;endpoint&lt;/span&gt;);
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;ul&gt;
+&lt;li&gt;http 发送请求设置 , 这是以上方法的底层原理
+&lt;a href=&#34;https://api.telegram.org/bot%3Ctoken%3E/setWebhook?url=%22%E4%BD%A0%E7%9A%84url%22&#34;&gt;https://api.telegram.org/bot&lt;!-- raw HTML omitted --&gt;/setWebhook?url=&amp;ldquo;你的url&amp;rdquo;&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</description>
+    </item>
     <item>
       <title>HugoSshGit自动部署</title>
       <link>/posts/4/</link>
