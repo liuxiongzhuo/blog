@@ -1,9 +1,10 @@
 ---
 date: '2025-01-07T20:52:04+08:00'
 draft: false
-title: 'Aiimage0'
+title: 'ai绘画0'
 slug: '6'
 ---
+使用 stable diffusion 和 [civitai.com](civitai.com) 绘制的图画
 ![BQACAgUAAxkBAAICPGd9I8YMzE8aKhl2WZVGWu2UwaSNAALcEAACTq_oV5zoRJPC4UbZNgQ](https://img.meteorrain.site/i/BQACAgUAAxkBAAICPGd9I8YMzE8aKhl2WZVGWu2UwaSNAALcEAACTq_oV5zoRJPC4UbZNgQ)
 ![BQACAgUAAxkBAAICPWd9I8ZPTL3Y2dwCfEV3cM9hyZAgAALfEAACTq_oV5eA8WHYt8oVNgQ](https://img.meteorrain.site/i/BQACAgUAAxkBAAICPWd9I8ZPTL3Y2dwCfEV3cM9hyZAgAALfEAACTq_oV5eA8WHYt8oVNgQ)
 ![BQACAgUAAxkBAAICPmd9I8Zvpwrnw8_JkDYcb_s9TR-4AALeEAACTq_oV_HNrlPoce76NgQ](https://img.meteorrain.site/i/BQACAgUAAxkBAAICPmd9I8Zvpwrnw8_JkDYcb_s9TR-4AALeEAACTq_oV_HNrlPoce76NgQ)
