@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>edit</title>
+    <link rel="stylesheet" href="./css/markdown.css">
+    <style>
+        #content {
+            height: 300px;
+        }
+
+        #main {
+            display: flex;
+            flex-direction: row;
+        }
+        #edit input,#edit textarea{
+            width: 100%;
+        }
+        #edit{
+            padding-right: 20px;
+        }
+        #edit,
+        #preview {
+            box-sizing: border-box;
+            flex: 1;
+        }
+        @media screen and (max-width:1024px) {
+            #main{
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="main">
+
+        <div id="edit">
+
+            <div id="coverText">
+                <label for="cover">封面</label>
+                <input type="text" id="cover">
+            </div>
+            <div id="titleText">
+                <label for="title">标题</label>
+                <input type="text" id="title">
+            </div>
+            <div id="timeText">
+                <label for="time">时间</label>
+                <input type="text" id="time">
+            </div>
+            <div id="briefText">
+                <label for="brief">简介</label>
+                <input type="text" id="brief">
+            </div>
+            <div id="contentText">
+                <label for="content">内容</label>
+                <textarea name="" id="content"></textarea>
+            </div>
+        </div>
+        <div id="preview" class="markdown"></div>
+    </div>
+    <img src="./img/ok.svg" alt="" id="update">
+    <img src="./img/back.svg" alt="" id="back">
+    <script type="module" src="./script/edit.js"></script>
+</body>
+
+</html>
