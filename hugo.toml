@@ -1,0 +1,14 @@
+languageCode = "zh-cn"
+title = "meteorrain's blog"
+theme = "PaperMod"
+[params]
+title = "meteorrain's blog"
+description = "outgoing student"
+keywords = ["blog"]
+author = "meteorrain"
+[params.assets]
+favicon = "/favicon.ico"
+[params.homeInfoParams]
+Title = "Hi there \U0001F44B"
+Content = "Welcome to my blog"
+
