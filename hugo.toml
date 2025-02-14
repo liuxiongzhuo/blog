@@ -1,11 +1,11 @@
 languageCode = "zh-cn"
-title = "meteorrain's blog"
+title = "0031400's blog"
 theme = "PaperMod"
 [params]
-title = "meteorrain's blog"
+title = "0031400's blog"
 description = "outgoing student"
 keywords = ["blog"]
-author = "meteorrain"
+author = "0031400"
 [params.assets]
 favicon = "/favicon.ico"
 [params.homeInfoParams]
