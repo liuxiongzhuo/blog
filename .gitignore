@@ -6,4 +6,3 @@ layouts
 static
 themes
 .hugo_build.lock
-hugo.toml
