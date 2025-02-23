@@ -1,0 +1,14 @@
+languageCode = "zh-cn"
+title = "0031400's blog"
+theme = "PaperMod"
+publishDir = "docs"
+[params]
+title = "0031400's blog"
+description = "outgoing student"
+keywords = ["blog"]
+author = "0031400"
+[params.assets]
+favicon = "/favicon.ico"
+[params.homeInfoParams]
+Title = "Hi there \U0001F44B"
+Content = "Welcome to my blog"

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Posts on meteorrain&#39;s blog</title>
+    <link>/posts/</link>
+    <description>Recent content in Posts on meteorrain&#39;s blog</description>
+    <generator>Hugo -- 0.141.0</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sat, 08 Feb 2025 10:14:24 +0800</lastBuildDate>
+    <atom:link href="/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>from web to docker</title>
+      <link>/posts/1/</link>
+      <pubDate>Sat, 08 Feb 2025 10:14:24 +0800</pubDate>
+      <guid>/posts/1/</guid>
+      <description>&lt;p&gt;本教程从基本的网络知识讲起，讲如果部署网路云服务，面向对云服务有一定兴趣，但是对这方面掌握的知识不多的同志。我作为掌握了一定能力和经验的人，来分享一下我的知识。&lt;/p&gt;
+&lt;h3 id=&#34;提示&#34;&gt;提示&lt;/h3&gt;
+&lt;p&gt;文末有关于内网穿透，虚拟主机，vps，nat-vps的介绍&lt;/p&gt;
+&lt;h3 id=&#34;什么是web应用&#34;&gt;什么是web应用&lt;/h3&gt;
+&lt;p&gt;首先，我们从web应用开始讲起，我们可以访问到一个web，分两个平台，一个是客户端，一个是服务端，如果是网站的话，客户端大概率是个游览器，服务端简单来说分为三要素，代码，应用，机器。我们可以用python,nodejs,java等语言编写web服务器的代码，这代码就负责交代网络通信的逻辑，往低端来说，就是自动化脚本。应用，就是运行代码的可执行程序。机器，就是执行代码，运行应用的物理机器，又叫云服务器。举个很简单的例子，我们用一个口语化的语言写下这个代码，如果用户访问，我们返回hello world，然后我们在自己的笔记本电脑运行这个程序，这里注意一下，这个程序不是完成某个任务就停止了，而是一直等待用户来访问。此时，服务端完成了，我们打开游览器，输入ip地址，就可以看到我们计划中输出的hello world了。等等，什么是ip地址，我接下来讲讲。&lt;/p&gt;
+&lt;h3 id=&#34;什么是ip地址&#34;&gt;什么是ip地址&lt;/h3&gt;
+&lt;p&gt;世界上有很多台机器都在运行着web应用，你打开游览器后第一件事可能在想，我要怎么访问我的web呢。ip地址就是个直接的回答。我们把每台机器用ip地址标记，先说成熟的ipv4，大概是张这样的：123:12:85:6，四个数字由冒号相连，每个数字的范围是0到255，我们只需在游览器输入运行web应用的机器的ip地址，就能访问到我们的web了。那么，我的ip是什么呢？&lt;/p&gt;
+&lt;h3 id=&#34;查看本机ip地址&#34;&gt;查看本机ip地址&lt;/h3&gt;
+&lt;p&gt;windows系统在文件管理器右键，点击&amp;quot;在终端打开&amp;quot;，然后会出现一个黑色的应用，我们把它叫做终端。我们在上面输入&lt;code&gt;ipconfig&lt;/code&gt;，回车，然后会返回很多行，有一行是&lt;code&gt;IPv4 地址     : 192.168.44.1&lt;/code&gt;，这就是我们的ip地址，让我们在游览器输入192.168.44.1，就可以访问到我们的web了，等等，好像有人在游览器输入的是localhost或者是127.0.0.1，这两个比较特殊，他们代表本机，就是自己这台电脑。然后我们兴奋的把自己的ip地址发送给好朋友，期待他们也能看到自己的杰作，结果对方说根本打不开。为什么呢，这就是nat技术。&lt;/p&gt;
+&lt;h3 id=&#34;什么是nat&#34;&gt;什么是nat&lt;/h3&gt;
+&lt;p&gt;上面我们说了每台机器都有一个ip地址，但是刚出现ip地址这个东西还是能让每台电脑都分配到一个ip地址，但是可以上网的设备数量增加的实在是太快了，2011年就宣布ip不够用了，出现了一个方案，就是nat技术，简单来说就是很多台机器共用一个ip地址，在现在大多数的家庭环境中，一家，甚至一个社区都可能在用一个ip，那么我的电脑和我的手机用的是同一个wifi，我和我的电脑的ip是一样的，那么我要怎么访问我的电脑上的web呢，方法就是，nat技术分了一部分ip属于内网，大概有两种，一种是192开头的，一种是10开头的，前者大多是个人，家庭网络环境的，后者大多是企业。什么意思呢，就是nat技术的出现划分了公网和内网ip，一般来说很多台电子设备在局域网中互相通信是可以根据内网ip来辨别谁是谁的，但是他们共享同一个公网，在和外面的网络世界沟通的时候，这些很多台电子设备都是一个公网地址，所以，我们的192.168.44.1并不是公网，局域网外的小伙伴，他们的局域网里面的192.168.44.1并不是我们。那么可能我们现在有个问题，我们都是一个公网，那么我们上网的身份是同一个吗，听起来有点离谱，现在我解答这个疑惑，有端口的存在。&lt;/p&gt;
+&lt;h3 id=&#34;什么是端口&#34;&gt;什么是端口&lt;/h3&gt;
+&lt;p&gt;我们从一个生活中的案例开始讲，我在逛论坛，同时开着微信视频聊天，所以我现在同时收到两个网络信息，不会堵吗？确实不会，我们的网卡有很多门，微信和游览器只使用了一个门，这些门就是端口，一个网卡有65536个端口。回答上面的问题，我和我的邻居虽然都是共享一个公网，但是这个公网是有65536个端口的，我们临时占用了一个端口，所以我和我的邻居虽然是一个公网ip，但是完全不妨碍。好了，我们回归正题，我要怎么让我的小伙伴看到我的web呢？有两条路可以走，一个是在局域网内学习网路知识，一个是使用云服务器，因为云服务器大多是一个机器一个公网ip的，接下来我们走进云服务器的世界。&lt;/p&gt;
+&lt;h3 id=&#34;什么是云服务器&#34;&gt;什么是云服务器&lt;/h3&gt;
+&lt;p&gt;云服务器就是24小时不停运行的机器，这很适合web这种要一直运行监听的任务。云服务器一般是放在机房里面的，有专门的散热和供电，管理，而且可以隔绝噪音。那么这不就是我从来没拔开过充电口的笔记本电脑吗，就是多了个公网ip？对，云服务器就是电脑，而且是专门用于云服务的电脑，它去掉了很多对云服务没用的东西，比如摄像头，鼠标，键盘，显示器，它只需要硬盘，CPU，内存，电源，网卡。但是，在软件方面，它和我们大多数人用的差别很大，它和我们不是同一种系统，它是linux!&lt;/p&gt;
+&lt;h3 id=&#34;什么是linux&#34;&gt;什么是linux&lt;/h3&gt;
+&lt;p&gt;大体来说，电脑系统分3类，微软的windows，苹果的macos，还有就是开源的linux，还有有些linux也不是开源的，对的，linux不是指某个系统，它是指一类系统，比如说centos,ubuntu,debian,alpine等，他们的关系就是来自于同一个祖先，然后演化走了不同路线，专业地说就是，使用linux内核的不同发行版本，提示一下，我接下来说的主要以debian为例子，这个比较流行。linux和windows,macos差别都有什么呢？一个差别就是linux大多没有图形化桌面，我们控制只能通过终端控制，等等，终端是前面win那个黑色的窗口吗？对的，是同一种东西。那么，我要怎么用终端控制我的linux系统呢？答案是ssh&lt;/p&gt;
+&lt;h3 id=&#34;什么是ssh&#34;&gt;什么是ssh&lt;/h3&gt;
+&lt;p&gt;ssh是远程连接机器的工具，怎么使用呢，打开我们win的终端，输入一下指令&lt;code&gt;ssh root@12.13.14.15&lt;/code&gt;，这里的12.13.14.15就是我们的云服务器的ip地址，我现在以云服务器为例子开始讲，也可以输入局域网的装了linux系统的电脑的内网ip，我先告诉你，这个&lt;code&gt;root&lt;/code&gt;指的我们要作为什么用户来登录，目前先用管理员用户，回车之后，会提示&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;The authenticity of host &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;12.13.14.15 (12.13.14.15)&amp;#39;&lt;/span&gt; can&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;&amp;#39;&lt;/span&gt;t be established.
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;ED25519 key fingerprint is SHA256:pjClvxwCBfsadfbufUmPeUM8tvB/Jw+sIcTsb1rU9A.
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;This key is not known by any other names.
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;Are you sure you want to &lt;span style=&#34;color:#66d9ef&#34;&gt;continue&lt;/span&gt; connecting &lt;span style=&#34;color:#f92672&#34;&gt;(&lt;/span&gt;yes/no/&lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt;fingerprint&lt;span style=&#34;color:#f92672&#34;&gt;])&lt;/span&gt;?
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;我们填&lt;code&gt;yes&lt;/code&gt;，回车，然后会出现&lt;code&gt;root@12.13.14.15&#39;s password:&lt;/code&gt;然后我们输入密码，这里注意，我们输入的是看不见的，输入完回车就可以了，出现&lt;code&gt;root@pc:~$&lt;/code&gt;这类字就说明我们登录成功了。等等，我好像忘了，要怎么获得一台装了linux系统的机器&lt;/p&gt;
+&lt;h3 id=&#34;使用虚拟机&#34;&gt;使用虚拟机&lt;/h3&gt;
+&lt;p&gt;我们可以在我们的电脑里面装个虚拟的linux系统，我们去bing搜索一个vmware装虚拟机的教学帖子看一下，很容易的。&lt;/p&gt;
+&lt;h3 id=&#34;购买云服务器&#34;&gt;购买云服务器&lt;/h3&gt;
+&lt;p&gt;或者我们可以直接购买云服务器来进行学习，这和虚拟机来学习各有优缺点，国内大厂有阿里云，腾讯云，华为云，国外有甲骨文，谷歌，微软，等等，购买的教程网上也有，不过，易见，虚拟机更方便学习。&lt;/p&gt;
+&lt;h3 id=&#34;linux基本知识&#34;&gt;linux基本知识&lt;/h3&gt;
+&lt;p&gt;在学习web前，我们来学习一下常见的linux指令&lt;/p&gt;
+&lt;table&gt;
+  &lt;thead&gt;
+      &lt;tr&gt;
+          &lt;th&gt;指令&lt;/th&gt;
+          &lt;th&gt;解释&lt;/th&gt;
+      &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+      &lt;tr&gt;
+          &lt;td&gt;pwd&lt;/td&gt;
+          &lt;td&gt;查看当前目录位置&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+          &lt;td&gt;ls&lt;/td&gt;
+          &lt;td&gt;列出当前目录&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+          &lt;td&gt;cd 目录&lt;/td&gt;
+          &lt;td&gt;进入某个目录&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+          &lt;td&gt;rm 文件&lt;/td&gt;
+          &lt;td&gt;删除文件&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+          &lt;td&gt;rm -f 空文件夹&lt;/td&gt;
+          &lt;td&gt;删除空文件夹&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+          &lt;td&gt;rm -rf 文件夹&lt;/td&gt;
+          &lt;td&gt;删除文件夹&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+          &lt;td&gt;mv 源文件或源文件夹 目的地&lt;/td&gt;
+          &lt;td&gt;移动文件或文件夹&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+          &lt;td&gt;touch 文件&lt;/td&gt;
+          &lt;td&gt;新建空白文件&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+          &lt;td&gt;mkdir 目录&lt;/td&gt;
+          &lt;td&gt;创建目录&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+          &lt;td&gt;cat 文件&lt;/td&gt;
+          &lt;td&gt;显示文件内容&lt;/td&gt;
+      &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;然后我们需要掌握编辑文本的能力，有两个方法，学会vim/vi，使用ftp，在自己电脑编辑好文件，再上传到linux&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

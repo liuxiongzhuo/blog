@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>from web to docker | meteorrain&#39;s blog</title>
+<meta name="keywords" content="">
+<meta name="description" content="本教程从基本的网络知识讲起，讲如果部署网路云服务，面向对云服务有一定兴趣，但是对这方面掌握的知识不多的同志。我作为掌握了一定能力和经验的人，来分享一下我的知识。
+提示
+文末有关于内网穿透，虚拟主机，vps，nat-vps的介绍
+什么是web应用
+首先，我们从web应用开始讲起，我们可以访问到一个web，分两个平台，一个是客户端，一个是服务端，如果是网站的话，客户端大概率是个游览器，服务端简单来说分为三要素，代码，应用，机器。我们可以用python,nodejs,java等语言编写web服务器的代码，这代码就负责交代网络通信的逻辑，往低端来说，就是自动化脚本。应用，就是运行代码的可执行程序。机器，就是执行代码，运行应用的物理机器，又叫云服务器。举个很简单的例子，我们用一个口语化的语言写下这个代码，如果用户访问，我们返回hello world，然后我们在自己的笔记本电脑运行这个程序，这里注意一下，这个程序不是完成某个任务就停止了，而是一直等待用户来访问。此时，服务端完成了，我们打开游览器，输入ip地址，就可以看到我们计划中输出的hello world了。等等，什么是ip地址，我接下来讲讲。
+什么是ip地址
+世界上有很多台机器都在运行着web应用，你打开游览器后第一件事可能在想，我要怎么访问我的web呢。ip地址就是个直接的回答。我们把每台机器用ip地址标记，先说成熟的ipv4，大概是张这样的：123:12:85:6，四个数字由冒号相连，每个数字的范围是0到255，我们只需在游览器输入运行web应用的机器的ip地址，就能访问到我们的web了。那么，我的ip是什么呢？
+查看本机ip地址
+windows系统在文件管理器右键，点击&quot;在终端打开&quot;，然后会出现一个黑色的应用，我们把它叫做终端。我们在上面输入ipconfig，回车，然后会返回很多行，有一行是IPv4 地址     : 192.168.44.1，这就是我们的ip地址，让我们在游览器输入192.168.44.1，就可以访问到我们的web了，等等，好像有人在游览器输入的是localhost或者是127.0.0.1，这两个比较特殊，他们代表本机，就是自己这台电脑。然后我们兴奋的把自己的ip地址发送给好朋友，期待他们也能看到自己的杰作，结果对方说根本打不开。为什么呢，这就是nat技术。
+什么是nat
+上面我们说了每台机器都有一个ip地址，但是刚出现ip地址这个东西还是能让每台电脑都分配到一个ip地址，但是可以上网的设备数量增加的实在是太快了，2011年就宣布ip不够用了，出现了一个方案，就是nat技术，简单来说就是很多台机器共用一个ip地址，在现在大多数的家庭环境中，一家，甚至一个社区都可能在用一个ip，那么我的电脑和我的手机用的是同一个wifi，我和我的电脑的ip是一样的，那么我要怎么访问我的电脑上的web呢，方法就是，nat技术分了一部分ip属于内网，大概有两种，一种是192开头的，一种是10开头的，前者大多是个人，家庭网络环境的，后者大多是企业。什么意思呢，就是nat技术的出现划分了公网和内网ip，一般来说很多台电子设备在局域网中互相通信是可以根据内网ip来辨别谁是谁的，但是他们共享同一个公网，在和外面的网络世界沟通的时候，这些很多台电子设备都是一个公网地址，所以，我们的192.168.44.1并不是公网，局域网外的小伙伴，他们的局域网里面的192.168.44.1并不是我们。那么可能我们现在有个问题，我们都是一个公网，那么我们上网的身份是同一个吗，听起来有点离谱，现在我解答这个疑惑，有端口的存在。
+什么是端口
+我们从一个生活中的案例开始讲，我在逛论坛，同时开着微信视频聊天，所以我现在同时收到两个网络信息，不会堵吗？确实不会，我们的网卡有很多门，微信和游览器只使用了一个门，这些门就是端口，一个网卡有65536个端口。回答上面的问题，我和我的邻居虽然都是共享一个公网，但是这个公网是有65536个端口的，我们临时占用了一个端口，所以我和我的邻居虽然是一个公网ip，但是完全不妨碍。好了，我们回归正题，我要怎么让我的小伙伴看到我的web呢？有两条路可以走，一个是在局域网内学习网路知识，一个是使用云服务器，因为云服务器大多是一个机器一个公网ip的，接下来我们走进云服务器的世界。
+什么是云服务器
+云服务器就是24小时不停运行的机器，这很适合web这种要一直运行监听的任务。云服务器一般是放在机房里面的，有专门的散热和供电，管理，而且可以隔绝噪音。那么这不就是我从来没拔开过充电口的笔记本电脑吗，就是多了个公网ip？对，云服务器就是电脑，而且是专门用于云服务的电脑，它去掉了很多对云服务没用的东西，比如摄像头，鼠标，键盘，显示器，它只需要硬盘，CPU，内存，电源，网卡。但是，在软件方面，它和我们大多数人用的差别很大，它和我们不是同一种系统，它是linux!
+什么是linux
+大体来说，电脑系统分3类，微软的windows，苹果的macos，还有就是开源的linux，还有有些linux也不是开源的，对的，linux不是指某个系统，它是指一类系统，比如说centos,ubuntu,debian,alpine等，他们的关系就是来自于同一个祖先，然后演化走了不同路线，专业地说就是，使用linux内核的不同发行版本，提示一下，我接下来说的主要以debian为例子，这个比较流行。linux和windows,macos差别都有什么呢？一个差别就是linux大多没有图形化桌面，我们控制只能通过终端控制，等等，终端是前面win那个黑色的窗口吗？对的，是同一种东西。那么，我要怎么用终端控制我的linux系统呢？答案是ssh
+什么是ssh
+ssh是远程连接机器的工具，怎么使用呢，打开我们win的终端，输入一下指令ssh root@12.13.14.15，这里的12.13.14.15就是我们的云服务器的ip地址，我现在以云服务器为例子开始讲，也可以输入局域网的装了linux系统的电脑的内网ip，我先告诉你，这个root指的我们要作为什么用户来登录，目前先用管理员用户，回车之后，会提示
+The authenticity of host &#39;12.13.14.15 (12.13.14.15)&#39; can&#39;t be established.
+ED25519 key fingerprint is SHA256:pjClvxwCBfsadfbufUmPeUM8tvB/Jw&#43;sIcTsb1rU9A.
+This key is not known by any other names.
+Are you sure you want to continue connecting (yes/no/[fingerprint])?
+我们填yes，回车，然后会出现root@12.13.14.15&#39;s password:然后我们输入密码，这里注意，我们输入的是看不见的，输入完回车就可以了，出现root@pc:~$这类字就说明我们登录成功了。等等，我好像忘了，要怎么获得一台装了linux系统的机器
+使用虚拟机
+我们可以在我们的电脑里面装个虚拟的linux系统，我们去bing搜索一个vmware装虚拟机的教学帖子看一下，很容易的。
+购买云服务器
+或者我们可以直接购买云服务器来进行学习，这和虚拟机来学习各有优缺点，国内大厂有阿里云，腾讯云，华为云，国外有甲骨文，谷歌，微软，等等，购买的教程网上也有，不过，易见，虚拟机更方便学习。
+linux基本知识
+在学习web前，我们来学习一下常见的linux指令
+
+  
+      
+          指令
+          解释
+      
+  
+  
+      
+          pwd
+          查看当前目录位置
+      
+      
+          ls
+          列出当前目录
+      
+      
+          cd 目录
+          进入某个目录
+      
+      
+          rm 文件
+          删除文件
+      
+      
+          rm -f 空文件夹
+          删除空文件夹
+      
+      
+          rm -rf 文件夹
+          删除文件夹
+      
+      
+          mv 源文件或源文件夹 目的地
+          移动文件或文件夹
+      
+      
+          touch 文件
+          新建空白文件
+      
+      
+          mkdir 目录
+          创建目录
+      
+      
+          cat 文件
+          显示文件内容
+      
+  
+
+然后我们需要掌握编辑文本的能力，有两个方法，学会vim/vi，使用ftp，在自己电脑编辑好文件，再上传到linux">
+<meta name="author" content="meteorrain">
+<link rel="canonical" href="/posts/1/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.45e028aa8ce0961349adf411b013ee39406be2c0bc80d4ea3fc04555f7f4611a.css" integrity="sha256-ReAoqozglhNJrfQRsBPuOUBr4sC8gNTqP8BFVff0YRo=" rel="preload stylesheet" as="style">
+<link rel="icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="mask-icon" href="/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="/posts/1/">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --code-block-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript><meta property="og:url" content="/posts/1/">
+  <meta property="og:site_name" content="meteorrain&#39;s blog">
+  <meta property="og:title" content="from web to docker">
+  <meta property="og:description" content="本教程从基本的网络知识讲起，讲如果部署网路云服务，面向对云服务有一定兴趣，但是对这方面掌握的知识不多的同志。我作为掌握了一定能力和经验的人，来分享一下我的知识。
+提示 文末有关于内网穿透，虚拟主机，vps，nat-vps的介绍
+什么是web应用 首先，我们从web应用开始讲起，我们可以访问到一个web，分两个平台，一个是客户端，一个是服务端，如果是网站的话，客户端大概率是个游览器，服务端简单来说分为三要素，代码，应用，机器。我们可以用python,nodejs,java等语言编写web服务器的代码，这代码就负责交代网络通信的逻辑，往低端来说，就是自动化脚本。应用，就是运行代码的可执行程序。机器，就是执行代码，运行应用的物理机器，又叫云服务器。举个很简单的例子，我们用一个口语化的语言写下这个代码，如果用户访问，我们返回hello world，然后我们在自己的笔记本电脑运行这个程序，这里注意一下，这个程序不是完成某个任务就停止了，而是一直等待用户来访问。此时，服务端完成了，我们打开游览器，输入ip地址，就可以看到我们计划中输出的hello world了。等等，什么是ip地址，我接下来讲讲。
+什么是ip地址 世界上有很多台机器都在运行着web应用，你打开游览器后第一件事可能在想，我要怎么访问我的web呢。ip地址就是个直接的回答。我们把每台机器用ip地址标记，先说成熟的ipv4，大概是张这样的：123:12:85:6，四个数字由冒号相连，每个数字的范围是0到255，我们只需在游览器输入运行web应用的机器的ip地址，就能访问到我们的web了。那么，我的ip是什么呢？
+查看本机ip地址 windows系统在文件管理器右键，点击&#34;在终端打开&#34;，然后会出现一个黑色的应用，我们把它叫做终端。我们在上面输入ipconfig，回车，然后会返回很多行，有一行是IPv4 地址 : 192.168.44.1，这就是我们的ip地址，让我们在游览器输入192.168.44.1，就可以访问到我们的web了，等等，好像有人在游览器输入的是localhost或者是127.0.0.1，这两个比较特殊，他们代表本机，就是自己这台电脑。然后我们兴奋的把自己的ip地址发送给好朋友，期待他们也能看到自己的杰作，结果对方说根本打不开。为什么呢，这就是nat技术。
+什么是nat 上面我们说了每台机器都有一个ip地址，但是刚出现ip地址这个东西还是能让每台电脑都分配到一个ip地址，但是可以上网的设备数量增加的实在是太快了，2011年就宣布ip不够用了，出现了一个方案，就是nat技术，简单来说就是很多台机器共用一个ip地址，在现在大多数的家庭环境中，一家，甚至一个社区都可能在用一个ip，那么我的电脑和我的手机用的是同一个wifi，我和我的电脑的ip是一样的，那么我要怎么访问我的电脑上的web呢，方法就是，nat技术分了一部分ip属于内网，大概有两种，一种是192开头的，一种是10开头的，前者大多是个人，家庭网络环境的，后者大多是企业。什么意思呢，就是nat技术的出现划分了公网和内网ip，一般来说很多台电子设备在局域网中互相通信是可以根据内网ip来辨别谁是谁的，但是他们共享同一个公网，在和外面的网络世界沟通的时候，这些很多台电子设备都是一个公网地址，所以，我们的192.168.44.1并不是公网，局域网外的小伙伴，他们的局域网里面的192.168.44.1并不是我们。那么可能我们现在有个问题，我们都是一个公网，那么我们上网的身份是同一个吗，听起来有点离谱，现在我解答这个疑惑，有端口的存在。
+什么是端口 我们从一个生活中的案例开始讲，我在逛论坛，同时开着微信视频聊天，所以我现在同时收到两个网络信息，不会堵吗？确实不会，我们的网卡有很多门，微信和游览器只使用了一个门，这些门就是端口，一个网卡有65536个端口。回答上面的问题，我和我的邻居虽然都是共享一个公网，但是这个公网是有65536个端口的，我们临时占用了一个端口，所以我和我的邻居虽然是一个公网ip，但是完全不妨碍。好了，我们回归正题，我要怎么让我的小伙伴看到我的web呢？有两条路可以走，一个是在局域网内学习网路知识，一个是使用云服务器，因为云服务器大多是一个机器一个公网ip的，接下来我们走进云服务器的世界。
+什么是云服务器 云服务器就是24小时不停运行的机器，这很适合web这种要一直运行监听的任务。云服务器一般是放在机房里面的，有专门的散热和供电，管理，而且可以隔绝噪音。那么这不就是我从来没拔开过充电口的笔记本电脑吗，就是多了个公网ip？对，云服务器就是电脑，而且是专门用于云服务的电脑，它去掉了很多对云服务没用的东西，比如摄像头，鼠标，键盘，显示器，它只需要硬盘，CPU，内存，电源，网卡。但是，在软件方面，它和我们大多数人用的差别很大，它和我们不是同一种系统，它是linux!
+什么是linux 大体来说，电脑系统分3类，微软的windows，苹果的macos，还有就是开源的linux，还有有些linux也不是开源的，对的，linux不是指某个系统，它是指一类系统，比如说centos,ubuntu,debian,alpine等，他们的关系就是来自于同一个祖先，然后演化走了不同路线，专业地说就是，使用linux内核的不同发行版本，提示一下，我接下来说的主要以debian为例子，这个比较流行。linux和windows,macos差别都有什么呢？一个差别就是linux大多没有图形化桌面，我们控制只能通过终端控制，等等，终端是前面win那个黑色的窗口吗？对的，是同一种东西。那么，我要怎么用终端控制我的linux系统呢？答案是ssh
+什么是ssh ssh是远程连接机器的工具，怎么使用呢，打开我们win的终端，输入一下指令ssh root@12.13.14.15，这里的12.13.14.15就是我们的云服务器的ip地址，我现在以云服务器为例子开始讲，也可以输入局域网的装了linux系统的电脑的内网ip，我先告诉你，这个root指的我们要作为什么用户来登录，目前先用管理员用户，回车之后，会提示
+The authenticity of host &#39;12.13.14.15 (12.13.14.15)&#39; can&#39;t be established. ED25519 key fingerprint is SHA256:pjClvxwCBfsadfbufUmPeUM8tvB/Jw&#43;sIcTsb1rU9A. This key is not known by any other names. Are you sure you want to continue connecting (yes/no/[fingerprint])? 我们填yes，回车，然后会出现root@12.13.14.15&#39;s password:然后我们输入密码，这里注意，我们输入的是看不见的，输入完回车就可以了，出现root@pc:~$这类字就说明我们登录成功了。等等，我好像忘了，要怎么获得一台装了linux系统的机器
+使用虚拟机 我们可以在我们的电脑里面装个虚拟的linux系统，我们去bing搜索一个vmware装虚拟机的教学帖子看一下，很容易的。
+购买云服务器 或者我们可以直接购买云服务器来进行学习，这和虚拟机来学习各有优缺点，国内大厂有阿里云，腾讯云，华为云，国外有甲骨文，谷歌，微软，等等，购买的教程网上也有，不过，易见，虚拟机更方便学习。
+linux基本知识 在学习web前，我们来学习一下常见的linux指令
+指令 解释 pwd 查看当前目录位置 ls 列出当前目录 cd 目录 进入某个目录 rm 文件 删除文件 rm -f 空文件夹 删除空文件夹 rm -rf 文件夹 删除文件夹 mv 源文件或源文件夹 目的地 移动文件或文件夹 touch 文件 新建空白文件 mkdir 目录 创建目录 cat 文件 显示文件内容 然后我们需要掌握编辑文本的能力，有两个方法，学会vim/vi，使用ftp，在自己电脑编辑好文件，再上传到linux">
+  <meta property="og:locale" content="zh-cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2025-02-08T10:14:24+08:00">
+    <meta property="article:modified_time" content="2025-02-08T10:14:24+08:00">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="from web to docker">
+<meta name="twitter:description" content="本教程从基本的网络知识讲起，讲如果部署网路云服务，面向对云服务有一定兴趣，但是对这方面掌握的知识不多的同志。我作为掌握了一定能力和经验的人，来分享一下我的知识。
+提示
+文末有关于内网穿透，虚拟主机，vps，nat-vps的介绍
+什么是web应用
+首先，我们从web应用开始讲起，我们可以访问到一个web，分两个平台，一个是客户端，一个是服务端，如果是网站的话，客户端大概率是个游览器，服务端简单来说分为三要素，代码，应用，机器。我们可以用python,nodejs,java等语言编写web服务器的代码，这代码就负责交代网络通信的逻辑，往低端来说，就是自动化脚本。应用，就是运行代码的可执行程序。机器，就是执行代码，运行应用的物理机器，又叫云服务器。举个很简单的例子，我们用一个口语化的语言写下这个代码，如果用户访问，我们返回hello world，然后我们在自己的笔记本电脑运行这个程序，这里注意一下，这个程序不是完成某个任务就停止了，而是一直等待用户来访问。此时，服务端完成了，我们打开游览器，输入ip地址，就可以看到我们计划中输出的hello world了。等等，什么是ip地址，我接下来讲讲。
+什么是ip地址
+世界上有很多台机器都在运行着web应用，你打开游览器后第一件事可能在想，我要怎么访问我的web呢。ip地址就是个直接的回答。我们把每台机器用ip地址标记，先说成熟的ipv4，大概是张这样的：123:12:85:6，四个数字由冒号相连，每个数字的范围是0到255，我们只需在游览器输入运行web应用的机器的ip地址，就能访问到我们的web了。那么，我的ip是什么呢？
+查看本机ip地址
+windows系统在文件管理器右键，点击&quot;在终端打开&quot;，然后会出现一个黑色的应用，我们把它叫做终端。我们在上面输入ipconfig，回车，然后会返回很多行，有一行是IPv4 地址     : 192.168.44.1，这就是我们的ip地址，让我们在游览器输入192.168.44.1，就可以访问到我们的web了，等等，好像有人在游览器输入的是localhost或者是127.0.0.1，这两个比较特殊，他们代表本机，就是自己这台电脑。然后我们兴奋的把自己的ip地址发送给好朋友，期待他们也能看到自己的杰作，结果对方说根本打不开。为什么呢，这就是nat技术。
+什么是nat
+上面我们说了每台机器都有一个ip地址，但是刚出现ip地址这个东西还是能让每台电脑都分配到一个ip地址，但是可以上网的设备数量增加的实在是太快了，2011年就宣布ip不够用了，出现了一个方案，就是nat技术，简单来说就是很多台机器共用一个ip地址，在现在大多数的家庭环境中，一家，甚至一个社区都可能在用一个ip，那么我的电脑和我的手机用的是同一个wifi，我和我的电脑的ip是一样的，那么我要怎么访问我的电脑上的web呢，方法就是，nat技术分了一部分ip属于内网，大概有两种，一种是192开头的，一种是10开头的，前者大多是个人，家庭网络环境的，后者大多是企业。什么意思呢，就是nat技术的出现划分了公网和内网ip，一般来说很多台电子设备在局域网中互相通信是可以根据内网ip来辨别谁是谁的，但是他们共享同一个公网，在和外面的网络世界沟通的时候，这些很多台电子设备都是一个公网地址，所以，我们的192.168.44.1并不是公网，局域网外的小伙伴，他们的局域网里面的192.168.44.1并不是我们。那么可能我们现在有个问题，我们都是一个公网，那么我们上网的身份是同一个吗，听起来有点离谱，现在我解答这个疑惑，有端口的存在。
+什么是端口
+我们从一个生活中的案例开始讲，我在逛论坛，同时开着微信视频聊天，所以我现在同时收到两个网络信息，不会堵吗？确实不会，我们的网卡有很多门，微信和游览器只使用了一个门，这些门就是端口，一个网卡有65536个端口。回答上面的问题，我和我的邻居虽然都是共享一个公网，但是这个公网是有65536个端口的，我们临时占用了一个端口，所以我和我的邻居虽然是一个公网ip，但是完全不妨碍。好了，我们回归正题，我要怎么让我的小伙伴看到我的web呢？有两条路可以走，一个是在局域网内学习网路知识，一个是使用云服务器，因为云服务器大多是一个机器一个公网ip的，接下来我们走进云服务器的世界。
+什么是云服务器
+云服务器就是24小时不停运行的机器，这很适合web这种要一直运行监听的任务。云服务器一般是放在机房里面的，有专门的散热和供电，管理，而且可以隔绝噪音。那么这不就是我从来没拔开过充电口的笔记本电脑吗，就是多了个公网ip？对，云服务器就是电脑，而且是专门用于云服务的电脑，它去掉了很多对云服务没用的东西，比如摄像头，鼠标，键盘，显示器，它只需要硬盘，CPU，内存，电源，网卡。但是，在软件方面，它和我们大多数人用的差别很大，它和我们不是同一种系统，它是linux!
+什么是linux
+大体来说，电脑系统分3类，微软的windows，苹果的macos，还有就是开源的linux，还有有些linux也不是开源的，对的，linux不是指某个系统，它是指一类系统，比如说centos,ubuntu,debian,alpine等，他们的关系就是来自于同一个祖先，然后演化走了不同路线，专业地说就是，使用linux内核的不同发行版本，提示一下，我接下来说的主要以debian为例子，这个比较流行。linux和windows,macos差别都有什么呢？一个差别就是linux大多没有图形化桌面，我们控制只能通过终端控制，等等，终端是前面win那个黑色的窗口吗？对的，是同一种东西。那么，我要怎么用终端控制我的linux系统呢？答案是ssh
+什么是ssh
+ssh是远程连接机器的工具，怎么使用呢，打开我们win的终端，输入一下指令ssh root@12.13.14.15，这里的12.13.14.15就是我们的云服务器的ip地址，我现在以云服务器为例子开始讲，也可以输入局域网的装了linux系统的电脑的内网ip，我先告诉你，这个root指的我们要作为什么用户来登录，目前先用管理员用户，回车之后，会提示
+The authenticity of host &#39;12.13.14.15 (12.13.14.15)&#39; can&#39;t be established.
+ED25519 key fingerprint is SHA256:pjClvxwCBfsadfbufUmPeUM8tvB/Jw&#43;sIcTsb1rU9A.
+This key is not known by any other names.
+Are you sure you want to continue connecting (yes/no/[fingerprint])?
+我们填yes，回车，然后会出现root@12.13.14.15&#39;s password:然后我们输入密码，这里注意，我们输入的是看不见的，输入完回车就可以了，出现root@pc:~$这类字就说明我们登录成功了。等等，我好像忘了，要怎么获得一台装了linux系统的机器
+使用虚拟机
+我们可以在我们的电脑里面装个虚拟的linux系统，我们去bing搜索一个vmware装虚拟机的教学帖子看一下，很容易的。
+购买云服务器
+或者我们可以直接购买云服务器来进行学习，这和虚拟机来学习各有优缺点，国内大厂有阿里云，腾讯云，华为云，国外有甲骨文，谷歌，微软，等等，购买的教程网上也有，不过，易见，虚拟机更方便学习。
+linux基本知识
+在学习web前，我们来学习一下常见的linux指令
+
+  
+      
+          指令
+          解释
+      
+  
+  
+      
+          pwd
+          查看当前目录位置
+      
+      
+          ls
+          列出当前目录
+      
+      
+          cd 目录
+          进入某个目录
+      
+      
+          rm 文件
+          删除文件
+      
+      
+          rm -f 空文件夹
+          删除空文件夹
+      
+      
+          rm -rf 文件夹
+          删除文件夹
+      
+      
+          mv 源文件或源文件夹 目的地
+          移动文件或文件夹
+      
+      
+          touch 文件
+          新建空白文件
+      
+      
+          mkdir 目录
+          创建目录
+      
+      
+          cat 文件
+          显示文件内容
+      
+  
+
+然后我们需要掌握编辑文本的能力，有两个方法，学会vim/vi，使用ftp，在自己电脑编辑好文件，再上传到linux">
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "/posts/"
+    }
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "from web to docker",
+      "item": "/posts/1/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "from web to docker",
+  "name": "from web to docker",
+  "description": "本教程从基本的网络知识讲起，讲如果部署网路云服务，面向对云服务有一定兴趣，但是对这方面掌握的知识不多的同志。我作为掌握了一定能力和经验的人，来分享一下我的知识。\n提示 文末有关于内网穿透，虚拟主机，vps，nat-vps的介绍\n什么是web应用 首先，我们从web应用开始讲起，我们可以访问到一个web，分两个平台，一个是客户端，一个是服务端，如果是网站的话，客户端大概率是个游览器，服务端简单来说分为三要素，代码，应用，机器。我们可以用python,nodejs,java等语言编写web服务器的代码，这代码就负责交代网络通信的逻辑，往低端来说，就是自动化脚本。应用，就是运行代码的可执行程序。机器，就是执行代码，运行应用的物理机器，又叫云服务器。举个很简单的例子，我们用一个口语化的语言写下这个代码，如果用户访问，我们返回hello world，然后我们在自己的笔记本电脑运行这个程序，这里注意一下，这个程序不是完成某个任务就停止了，而是一直等待用户来访问。此时，服务端完成了，我们打开游览器，输入ip地址，就可以看到我们计划中输出的hello world了。等等，什么是ip地址，我接下来讲讲。\n什么是ip地址 世界上有很多台机器都在运行着web应用，你打开游览器后第一件事可能在想，我要怎么访问我的web呢。ip地址就是个直接的回答。我们把每台机器用ip地址标记，先说成熟的ipv4，大概是张这样的：123:12:85:6，四个数字由冒号相连，每个数字的范围是0到255，我们只需在游览器输入运行web应用的机器的ip地址，就能访问到我们的web了。那么，我的ip是什么呢？\n查看本机ip地址 windows系统在文件管理器右键，点击\u0026quot;在终端打开\u0026quot;，然后会出现一个黑色的应用，我们把它叫做终端。我们在上面输入ipconfig，回车，然后会返回很多行，有一行是IPv4 地址 : 192.168.44.1，这就是我们的ip地址，让我们在游览器输入192.168.44.1，就可以访问到我们的web了，等等，好像有人在游览器输入的是localhost或者是127.0.0.1，这两个比较特殊，他们代表本机，就是自己这台电脑。然后我们兴奋的把自己的ip地址发送给好朋友，期待他们也能看到自己的杰作，结果对方说根本打不开。为什么呢，这就是nat技术。\n什么是nat 上面我们说了每台机器都有一个ip地址，但是刚出现ip地址这个东西还是能让每台电脑都分配到一个ip地址，但是可以上网的设备数量增加的实在是太快了，2011年就宣布ip不够用了，出现了一个方案，就是nat技术，简单来说就是很多台机器共用一个ip地址，在现在大多数的家庭环境中，一家，甚至一个社区都可能在用一个ip，那么我的电脑和我的手机用的是同一个wifi，我和我的电脑的ip是一样的，那么我要怎么访问我的电脑上的web呢，方法就是，nat技术分了一部分ip属于内网，大概有两种，一种是192开头的，一种是10开头的，前者大多是个人，家庭网络环境的，后者大多是企业。什么意思呢，就是nat技术的出现划分了公网和内网ip，一般来说很多台电子设备在局域网中互相通信是可以根据内网ip来辨别谁是谁的，但是他们共享同一个公网，在和外面的网络世界沟通的时候，这些很多台电子设备都是一个公网地址，所以，我们的192.168.44.1并不是公网，局域网外的小伙伴，他们的局域网里面的192.168.44.1并不是我们。那么可能我们现在有个问题，我们都是一个公网，那么我们上网的身份是同一个吗，听起来有点离谱，现在我解答这个疑惑，有端口的存在。\n什么是端口 我们从一个生活中的案例开始讲，我在逛论坛，同时开着微信视频聊天，所以我现在同时收到两个网络信息，不会堵吗？确实不会，我们的网卡有很多门，微信和游览器只使用了一个门，这些门就是端口，一个网卡有65536个端口。回答上面的问题，我和我的邻居虽然都是共享一个公网，但是这个公网是有65536个端口的，我们临时占用了一个端口，所以我和我的邻居虽然是一个公网ip，但是完全不妨碍。好了，我们回归正题，我要怎么让我的小伙伴看到我的web呢？有两条路可以走，一个是在局域网内学习网路知识，一个是使用云服务器，因为云服务器大多是一个机器一个公网ip的，接下来我们走进云服务器的世界。\n什么是云服务器 云服务器就是24小时不停运行的机器，这很适合web这种要一直运行监听的任务。云服务器一般是放在机房里面的，有专门的散热和供电，管理，而且可以隔绝噪音。那么这不就是我从来没拔开过充电口的笔记本电脑吗，就是多了个公网ip？对，云服务器就是电脑，而且是专门用于云服务的电脑，它去掉了很多对云服务没用的东西，比如摄像头，鼠标，键盘，显示器，它只需要硬盘，CPU，内存，电源，网卡。但是，在软件方面，它和我们大多数人用的差别很大，它和我们不是同一种系统，它是linux!\n什么是linux 大体来说，电脑系统分3类，微软的windows，苹果的macos，还有就是开源的linux，还有有些linux也不是开源的，对的，linux不是指某个系统，它是指一类系统，比如说centos,ubuntu,debian,alpine等，他们的关系就是来自于同一个祖先，然后演化走了不同路线，专业地说就是，使用linux内核的不同发行版本，提示一下，我接下来说的主要以debian为例子，这个比较流行。linux和windows,macos差别都有什么呢？一个差别就是linux大多没有图形化桌面，我们控制只能通过终端控制，等等，终端是前面win那个黑色的窗口吗？对的，是同一种东西。那么，我要怎么用终端控制我的linux系统呢？答案是ssh\n什么是ssh ssh是远程连接机器的工具，怎么使用呢，打开我们win的终端，输入一下指令ssh root@12.13.14.15，这里的12.13.14.15就是我们的云服务器的ip地址，我现在以云服务器为例子开始讲，也可以输入局域网的装了linux系统的电脑的内网ip，我先告诉你，这个root指的我们要作为什么用户来登录，目前先用管理员用户，回车之后，会提示\nThe authenticity of host \u0026#39;12.13.14.15 (12.13.14.15)\u0026#39; can\u0026#39;t be established. ED25519 key fingerprint is SHA256:pjClvxwCBfsadfbufUmPeUM8tvB/Jw+sIcTsb1rU9A. This key is not known by any other names. Are you sure you want to continue connecting (yes/no/[fingerprint])? 我们填yes，回车，然后会出现root@12.13.14.15's password:然后我们输入密码，这里注意，我们输入的是看不见的，输入完回车就可以了，出现root@pc:~$这类字就说明我们登录成功了。等等，我好像忘了，要怎么获得一台装了linux系统的机器\n使用虚拟机 我们可以在我们的电脑里面装个虚拟的linux系统，我们去bing搜索一个vmware装虚拟机的教学帖子看一下，很容易的。\n购买云服务器 或者我们可以直接购买云服务器来进行学习，这和虚拟机来学习各有优缺点，国内大厂有阿里云，腾讯云，华为云，国外有甲骨文，谷歌，微软，等等，购买的教程网上也有，不过，易见，虚拟机更方便学习。\nlinux基本知识 在学习web前，我们来学习一下常见的linux指令\n指令 解释 pwd 查看当前目录位置 ls 列出当前目录 cd 目录 进入某个目录 rm 文件 删除文件 rm -f 空文件夹 删除空文件夹 rm -rf 文件夹 删除文件夹 mv 源文件或源文件夹 目的地 移动文件或文件夹 touch 文件 新建空白文件 mkdir 目录 创建目录 cat 文件 显示文件内容 然后我们需要掌握编辑文本的能力，有两个方法，学会vim/vi，使用ftp，在自己电脑编辑好文件，再上传到linux\n",
+  "keywords": [
+    
+  ],
+  "articleBody": "本教程从基本的网络知识讲起，讲如果部署网路云服务，面向对云服务有一定兴趣，但是对这方面掌握的知识不多的同志。我作为掌握了一定能力和经验的人，来分享一下我的知识。\n提示 文末有关于内网穿透，虚拟主机，vps，nat-vps的介绍\n什么是web应用 首先，我们从web应用开始讲起，我们可以访问到一个web，分两个平台，一个是客户端，一个是服务端，如果是网站的话，客户端大概率是个游览器，服务端简单来说分为三要素，代码，应用，机器。我们可以用python,nodejs,java等语言编写web服务器的代码，这代码就负责交代网络通信的逻辑，往低端来说，就是自动化脚本。应用，就是运行代码的可执行程序。机器，就是执行代码，运行应用的物理机器，又叫云服务器。举个很简单的例子，我们用一个口语化的语言写下这个代码，如果用户访问，我们返回hello world，然后我们在自己的笔记本电脑运行这个程序，这里注意一下，这个程序不是完成某个任务就停止了，而是一直等待用户来访问。此时，服务端完成了，我们打开游览器，输入ip地址，就可以看到我们计划中输出的hello world了。等等，什么是ip地址，我接下来讲讲。\n什么是ip地址 世界上有很多台机器都在运行着web应用，你打开游览器后第一件事可能在想，我要怎么访问我的web呢。ip地址就是个直接的回答。我们把每台机器用ip地址标记，先说成熟的ipv4，大概是张这样的：123:12:85:6，四个数字由冒号相连，每个数字的范围是0到255，我们只需在游览器输入运行web应用的机器的ip地址，就能访问到我们的web了。那么，我的ip是什么呢？\n查看本机ip地址 windows系统在文件管理器右键，点击\"在终端打开\"，然后会出现一个黑色的应用，我们把它叫做终端。我们在上面输入ipconfig，回车，然后会返回很多行，有一行是IPv4 地址 : 192.168.44.1，这就是我们的ip地址，让我们在游览器输入192.168.44.1，就可以访问到我们的web了，等等，好像有人在游览器输入的是localhost或者是127.0.0.1，这两个比较特殊，他们代表本机，就是自己这台电脑。然后我们兴奋的把自己的ip地址发送给好朋友，期待他们也能看到自己的杰作，结果对方说根本打不开。为什么呢，这就是nat技术。\n什么是nat 上面我们说了每台机器都有一个ip地址，但是刚出现ip地址这个东西还是能让每台电脑都分配到一个ip地址，但是可以上网的设备数量增加的实在是太快了，2011年就宣布ip不够用了，出现了一个方案，就是nat技术，简单来说就是很多台机器共用一个ip地址，在现在大多数的家庭环境中，一家，甚至一个社区都可能在用一个ip，那么我的电脑和我的手机用的是同一个wifi，我和我的电脑的ip是一样的，那么我要怎么访问我的电脑上的web呢，方法就是，nat技术分了一部分ip属于内网，大概有两种，一种是192开头的，一种是10开头的，前者大多是个人，家庭网络环境的，后者大多是企业。什么意思呢，就是nat技术的出现划分了公网和内网ip，一般来说很多台电子设备在局域网中互相通信是可以根据内网ip来辨别谁是谁的，但是他们共享同一个公网，在和外面的网络世界沟通的时候，这些很多台电子设备都是一个公网地址，所以，我们的192.168.44.1并不是公网，局域网外的小伙伴，他们的局域网里面的192.168.44.1并不是我们。那么可能我们现在有个问题，我们都是一个公网，那么我们上网的身份是同一个吗，听起来有点离谱，现在我解答这个疑惑，有端口的存在。\n什么是端口 我们从一个生活中的案例开始讲，我在逛论坛，同时开着微信视频聊天，所以我现在同时收到两个网络信息，不会堵吗？确实不会，我们的网卡有很多门，微信和游览器只使用了一个门，这些门就是端口，一个网卡有65536个端口。回答上面的问题，我和我的邻居虽然都是共享一个公网，但是这个公网是有65536个端口的，我们临时占用了一个端口，所以我和我的邻居虽然是一个公网ip，但是完全不妨碍。好了，我们回归正题，我要怎么让我的小伙伴看到我的web呢？有两条路可以走，一个是在局域网内学习网路知识，一个是使用云服务器，因为云服务器大多是一个机器一个公网ip的，接下来我们走进云服务器的世界。\n什么是云服务器 云服务器就是24小时不停运行的机器，这很适合web这种要一直运行监听的任务。云服务器一般是放在机房里面的，有专门的散热和供电，管理，而且可以隔绝噪音。那么这不就是我从来没拔开过充电口的笔记本电脑吗，就是多了个公网ip？对，云服务器就是电脑，而且是专门用于云服务的电脑，它去掉了很多对云服务没用的东西，比如摄像头，鼠标，键盘，显示器，它只需要硬盘，CPU，内存，电源，网卡。但是，在软件方面，它和我们大多数人用的差别很大，它和我们不是同一种系统，它是linux!\n什么是linux 大体来说，电脑系统分3类，微软的windows，苹果的macos，还有就是开源的linux，还有有些linux也不是开源的，对的，linux不是指某个系统，它是指一类系统，比如说centos,ubuntu,debian,alpine等，他们的关系就是来自于同一个祖先，然后演化走了不同路线，专业地说就是，使用linux内核的不同发行版本，提示一下，我接下来说的主要以debian为例子，这个比较流行。linux和windows,macos差别都有什么呢？一个差别就是linux大多没有图形化桌面，我们控制只能通过终端控制，等等，终端是前面win那个黑色的窗口吗？对的，是同一种东西。那么，我要怎么用终端控制我的linux系统呢？答案是ssh\n什么是ssh ssh是远程连接机器的工具，怎么使用呢，打开我们win的终端，输入一下指令ssh root@12.13.14.15，这里的12.13.14.15就是我们的云服务器的ip地址，我现在以云服务器为例子开始讲，也可以输入局域网的装了linux系统的电脑的内网ip，我先告诉你，这个root指的我们要作为什么用户来登录，目前先用管理员用户，回车之后，会提示\nThe authenticity of host '12.13.14.15 (12.13.14.15)' can't be established. ED25519 key fingerprint is SHA256:pjClvxwCBfsadfbufUmPeUM8tvB/Jw+sIcTsb1rU9A. This key is not known by any other names. Are you sure you want to continue connecting (yes/no/[fingerprint])? 我们填yes，回车，然后会出现root@12.13.14.15's password:然后我们输入密码，这里注意，我们输入的是看不见的，输入完回车就可以了，出现root@pc:~$这类字就说明我们登录成功了。等等，我好像忘了，要怎么获得一台装了linux系统的机器\n使用虚拟机 我们可以在我们的电脑里面装个虚拟的linux系统，我们去bing搜索一个vmware装虚拟机的教学帖子看一下，很容易的。\n购买云服务器 或者我们可以直接购买云服务器来进行学习，这和虚拟机来学习各有优缺点，国内大厂有阿里云，腾讯云，华为云，国外有甲骨文，谷歌，微软，等等，购买的教程网上也有，不过，易见，虚拟机更方便学习。\nlinux基本知识 在学习web前，我们来学习一下常见的linux指令\n指令 解释 pwd 查看当前目录位置 ls 列出当前目录 cd 目录 进入某个目录 rm 文件 删除文件 rm -f 空文件夹 删除空文件夹 rm -rf 文件夹 删除文件夹 mv 源文件或源文件夹 目的地 移动文件或文件夹 touch 文件 新建空白文件 mkdir 目录 创建目录 cat 文件 显示文件内容 然后我们需要掌握编辑文本的能力，有两个方法，学会vim/vi，使用ftp，在自己电脑编辑好文件，再上传到linux\n什么是ftp ftp和ssh都是一个工具，或者说是协议，ssh复制交互执行命令，ftp复制文件管理和传输，命令行的ftp很难用，我推荐使用可视化软件，比如winscp,具体使用教程请搜索bing\n了解nginx和静态站点 我们最简单的一种web叫做静态站点，组成是什么呢，应用，站点文件，装linux的机器。nginx是我最熟悉而且很流行的一个web应用，我先讲讲它。怎么在linux安装nginx呢？\napt update apt upgrade -y apt install nginx -y 前两行是更新软件用的，偶尔执行一遍就好了，第三句是安装nginx，注意，我使用的是debian，ubuntu和它类似，但是centos和alpine不一样，推荐使用debian进行学习，apt是包管理器，相当于我们手机的应用商店，-y是参数，表示接下来可能遇到的询问都回答yes，那么接下来我们要怎么使用nginx搭建一个静态web呢，我们需要静态站点的文件，最主要的是html，不过其他文件也是可以的，比如说写着hello world的一个web.txt，或者是一个图片web.png，或者是一个视频，总之，我们通过ftp工具把静态站点的文件放到一个目录就可以开始了，我们要怎么让nginx展示我们的静态文件呢？回答是，我们要修改nginx的配置文件，我们使用vim修改或者ftp把文件提取出来再修改，接下来我们打开一个文件，在/etc/nginx/sites-enabled/下会有个默认的配置文件default，如果没有可以去/etc/nginx/conf.d/看看，那么我们看看这个配置文件张什么样子\nserver { listen 80 default_server; listen [::]:80 default_server; root /var/www/html; index index.html index.htm index.nginx-debian.html; server_name _; location / { try_files $uri $uri/ =404; } } 原文件有很多用#开头的行，他们是注释，我去掉了就是上面这个样子，一个server加上大括号，表示的是一个站点，是的，我们可以在这个文件放很多个server{}，然后就可以在一台机器放置很多的站点，这就是虚拟主机的基本原理，而且因为这样，虚拟主机的价格远低于云服务器，server块有几行是我们目前需要的，listen 端口表示nginx要监听的端口，也就是我们在游览器除了要输入ip地址还要在后面加个冒号再写的端口号，就像这样11.12.13.14:80，不过，默认端口是80和443，我们不输入，游览器就使用了默认值，root 文件夹，这表示我们的静态站点的文件夹位置，index 文件类型，表示我们的网站默认页的文件名，一般写index index.html;就可以了，所以说我们的配置项目前只需要这样\nserver{ listen 80; root /app; index index.html; } 我写的是/app，这得看我们把静态站点的文件放到哪里了，假如我们目录有个web.txt，那么我们在游览器就可以输入http://12.13.14.15:80/web.txt，然后就显示出来里面的文件了，但是我们可能有个疑问，我们要的是网站，而不是这种纯文本查看器，要怎么做，首先，我们要了解web的本质，简单来说就是文件传输的作用，如果文件是txt类型，就会发送到我们的游览器，然后由游览器决定怎么把它显示出来，如果是html，游览器显示的就非常丰富了，而且还有表单等交互功能，所以我们要得到一个html文件，我们有两条路，一条是自己写，一条是使用工具。\n手写html 最基本是这样的\n\u003c!DOCTYPE html\u003e \u003chtml lang=\"en\"\u003e \u003chead\u003e \u003c/head\u003e \u003cbody\u003e hello world \u003c/body\u003e \u003c/html\u003e 具体要怎么写，我们可以学习相关的知识，不过，我们学习静态站点这个也能用\n使用静态站点生成器 有一类工具是静态站点生成器，作用是把文本变成好看的html，比如说hugo，hexo，mkdocs，具体做法可以bing搜索\n运行nginx 把配置文件写好，站点文件准备好，我们就可以启动nginx了，怎么启动呢？输入nginx，如果本来是关闭又启动了，而且启动成功了，那么就不会有任何回复，如果显示\nnginx: [emerg] bind() to 0.0.0.0:80 failed (98: Address already in use) nginx: [emerg] bind() to [::]:80 failed (98: Address already in use) 就是意味着启动过了，我们要重启，使用nginx -s reload，如果要停止，输入nginx -s stop，注意，我们每次修改nginx的配置文件都要重启才能生效，如果出现了报错，我们可以网上搜索看看怎么解决。目前来看，好像只能静态访问，没什么用，那么，我们可以介绍一下，世界上最好的语言，php\n什么是php php是一个编程语言，专门负责web的，我们使用最流行的wordpress开演示怎么安装php网站，首先安装php相关的软件apt install php-fpm php-cli php-common php-mysql php-gd php-curl php-xml php-mbstring -y，然后下载wordpress并解压\nmkdir /var/php cd /var/php wget https://cn.wordpress.org/latest-zh_CN.zip unzip latest-zh_CN.zip 然后在/var/php/wordpress下面就是wordpress的文件了，我们修改nginx的配置文件\nserver { listen 80 ; root /var/php/wordpress; index index.html index.php; location ~ \\.php$ { fastcgi_param SCRIPT_FILENAME /var/php/wordpress$fastcgi_script_name; fastcgi_pass unix:/run/php/php8.3-fpm.sock; fastcgi_index index.php; include fastcgi_params; } } 注意一下/run/php/php8.3-fpm.sock这个要看我们安装的php版本，我们ls /run/php看看目录下有什么文件 配置完成后，我们可以在游览器用ip访问，如果是wordpress的安装目录，说明我们成功了，但是我们在游览器配置wordpress发现它要我们填写数据库，那么什么是数据库呢？\n什么是数据库 如果我们的网站是动态的并且要有记录，那么我们要有地方存放我们产生的信息，最粗糙的方法是用一个txt文件存放我们的信息，但是弊端很多，打开很慢，查询很麻烦，而且很容易文件损坏，所以有了数据库的诞生，我们安装一个数据库服务，然后wordpress作为客户端进行增加，修改，查询，删除等操作，看起来就像是编辑查看一个excel文件一样，我们获得数据库有2中方式，远程数据库，或者我们本地搭建一个\n远程数据库 有很多平台可以给我们小型的数据库来学习，比如说sqlpub，MongoDB等等，具体上网搜索一下，我们只需要获得几个参数，主机名，就是这个数据库所在机器的位置，端口，就是数据库使用的端口，用户名，密码，和数据库的名字\n本地搭建数据库 有很多种数据库，我们以很流行的mysql来做演示，首先，我们安装mysql服务端apt install mysql-server，然后我们进入mysql客户端环境mysql -u root -p，写下你的root密码登录就好，接下来创建一个数据库和用户，注意，密码需要复杂点\nCREATE DATABASE web; USE mysql; CREATE USER 'web'@'%' IDENTIFIED WITH mysql_native_password BY 'passwordofweb'; GRANT ALL PRIVILEGES ON web.* TO 'web'@'%'; FLUSH PRIVILEGES; 然后我们就可以在wordpress输入数据库的配置，开始wordpress之旅。接下来我们可以不想要ip访问，毕竟云服务器的公网ip很难记，那么我们需要域名。\n什么是域名 域名是一个类似快捷方式的东西，它是一个标记，用容易记住的域名来代表难记的ip地址，这个指向过程叫做dns，我们修改指向叫做更新dns记录，那么我们需要个域名，可以使用us.kg，cloudns等免费的二级域名，也可以到spaceship，namecheap等平台购买一级域名，一般是按年买的。我们想一下域名是怎么起作用的，我们在游览器输入ip是可以直接访问的，但是我们输入域名是要找到指向的ip的，那么电脑是怎么查询的呢，答案是它是去dns服务器查询的，一般电脑网路配置会设置自己的dns服务器，这个一般不用理，dns服务器会去到上层的dns服务器查询，直到在根dns服务器查询到我们的域名和指向的关系，我们购买了域名，本质上就是获得了修改根dns服务器记录的权限，然后我们购买的平台就是根dns服务器的代理商。那么我们要怎么修改dns记录呢，答案是我们也要通过一个中间平台，就是在我们购买了域名的平台和我们域名所有者直接加个name server服务器，很多平台具备dns解析功能，大厂有阿里云，腾讯云，cloudflare，我接下来用cloudflare来举例，我们在dns解析平台添加域名的时候会给我们提供他们家的name server服务器的域名，我们就要到购买域名的平台修改我们的name server记录值，这就完成了域名购买平台和dns解析平台之间的验证，我们修改dns，也就是添加删除dns记录，有很多种记录，我说一下常见的记录，A记录，负责把域名指向一个ipv4地址，AAAA记录，负责把域名指向一个ipv6地址，CNAME记录，负责把域名指向另一个域名，对的，这就是层层指向的关系，域名指向域名，最后会指向一个ip，MX记录，和域名邮件有关系，TXT记录，一般是负责验证功能的，通过验证你是否能够修改TXT记录来验证域名的所有权。我们要把我们的域名指向我们的云服务器，只需要添加一行A记录指向云服务器的ip就可以了，等等，平台上右边可以填我们指向的ip，左边好像也要填东西，左边就负责我们的子域名设置，对的，我们购买了一个域名hello.com，那么我们也拥有了a.hello.com和b.hello.com等无数的子域名，如果我们填@，就意味着使用hello.com这个域名，现在我们添加A记录从@指向12.13.14.15，就可以在游览器输入域名访问我们的web了，等等，我看游览器显示连接不安全不爽了很久，为什么别人的web不会这样，那我们讲讲https\n什么是https 我们目前的web使用的web传输协议是http，对的，叫做传输协议，因为本质上就是文件传输，这些信息在互联网上是不加密的，中间的设备都可以直接查看，修改这些数据，非常的不安全，那么我们需要加密这些数据，用户需要解密这些数据得到有用的，怎么配置加密呢？我们需要申请一个tls证书，http和https差别的s，指的就是tls,具体加密的原理是什么呢，我们有个算法，可以通过私钥把原信息加密成加密信息，加密信息通过公钥解密成原信息，所以我们传输加密信息的同时传递公钥，游览器获得公钥再解密就可以获得原信息了，这可以防止中间人修改数据再给客户，因为私钥和公钥是一一对应的，中间人没法获得私钥来制造出公钥可以解密的信息，那么tls要怎么得到呢，我推荐去ohttps申请，还有别的方法，可以自行搜索.提示一下，http的默认端口是80，https的默认端口是443总之，我们会获得两个文件，分别是公钥和私钥。接下来就是在web应用配置tls了。\nnginx配置tls 我们只需修改几行配置文件\nserver { listen 80 tls; server_name hello.com; ssl_certificate 公钥位置; ssl_certificate_key 私钥位置; root /var/php/wordpress; index index.html index.php; location ~ \\.php$ { fastcgi_param SCRIPT_FILENAME /var/php/wordpress$fastcgi_script_name; fastcgi_pass unix:/run/php/php8.3-fpm.sock; fastcgi_index index.php; include fastcgi_params; } } 然后重启nginx就可以了，我们就可以用域名https访问我们的web站点了。\n反向代理 我们学会了建网站，在逛github发现了很多有趣的东西，比如说alist,看了看简介，发现这个应用默认监听5244端口，那么我们要怎么让它可以用域名访问并且使用80/443端口呢，顺便加个tls，答案就是反向代理，我们就用nginx吧，他的反向代理的功能也是很强的，怎么使用呢，我们添加一个server块，填上下面的配置\nserver { listen 443 tls; listen [::]:443 tls; server_name 域名; ssl_certificate 公钥位置; ssl_certificate_key 私钥位置; location / { proxy_pass http://localhost:5244; proxy_http_version 1.1; proxy_read_timeout 300; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection \"upgrade\"; proxy_set_header Host $http_host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Real-PORT $remote_port; } } 这样子就可以实现域名访问了，实现了反向代理。\ndocker 我们在搭建这些东西的时候发现要配置环境好麻烦，想着，如果可以自动配置环境就好了，docker就是干这个的，一个docker里面装了个轻量的系统，然后我们直接运行这个虚拟系统就可以了。怎么安装docker呢，我们可以去docker的官网看，我把安装步骤贴下来。\n#卸载旧的docker for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done #安装docker前的准备 sudo apt-get update sudo apt-get install ca-certificates curl sudo install -m 0755 -d /etc/apt/keyrings sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc sudo chmod a+r /etc/apt/keyrings/docker.asc echo \\ \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \\ $(. /etc/os-release \u0026\u0026 echo \"$VERSION_CODENAME\") stable\" | \\ sudo tee /etc/apt/sources.list.d/docker.list \u003e /dev/null sudo apt-get update #安装docker sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 我们可以讲讲docker的原理是什么，开发人员编写一个文件叫做Dockerfile，这里面的内容就是从一个基本的轻量级系统配置，比如说docker的nginx，里面的内容可能就是这样的\n#从基本的debian开始 FROM debian #安装nginx RUN apt install nginx #启动nginx CMD ['nginx'] FROM指的是从哪个基础镜像开始，RUN表示执行的命令，CMD表示启动命令的指令。然后docker通过这个文件运行生成这个镜像，使用的命令是docker build .里面的.代表的是在以当前目录为环境生成，结果就是产生了一个虚拟系统文件，里面装的是一个系统，但是只是个文件，没有在运行，这叫做镜像，我们可以用docker images看我们有什么镜像。我们要运行就需要使用这个命令docker run 容器名字，对了，我们说一下Dockerfile里面RUN和CMD的区别，RUN实在镜像生成的时候运行的，CMD实在运行镜像的时候运行的，我们运行了镜像，就是真的开始运行里面的程序了，这个就叫做容器，我贴一下常见docker命令\n命令 含义 docker ps 查看当前运行的容器 docker ps -a 查看所有容器，运行或者不运行 docker images 查看有的镜像 docker run 镜像 运行镜像 docker restart 容器 重启容器 docker stop 容器 停止容器 docker build . 当前目录生成镜像 docker pull 镜像 到docker hub拉取镜像 docker cp 源路径 目标路径 在容器和主机直接复制文件或文件夹 docker exec 容器 命令 在容器执行命令 docker exec -it 容器 bash 进入容器 我们可以让一个文件或文件夹是容器和主机的共享文件，只需在docker run中添加参数就可以了-v 本机路径:容器路径，如果要完成端口映射就需要添加参数-p 本机端口:容器端口，如果容器要访问到另一个容器可以使用ip地址，因为每个容器都会分配到一个内网ip，或者我们可以把他们拉到一个网络中，然后使用容器的名字作为主机名。具体可以搜索一下。 补充-内网穿透 我们可能不想买个云服务器，那么我们可以用自己的电脑，然后通过一台有公网的机器作为中间介质，很多平台提供内网穿透的服务，我推荐cloudflare的tunnel，缺点是很慢，优点是可以使用自己的域名，具体可以搜索一下，其他的比如说ngrok也不错\n补充-虚拟主机 虚拟主机就是提供mysql和php环境和一定的内存的共享主机，往往给我们ftp，mysql的账号密码，这个也不错\n补充-vps vps就是一台云服务器使用软件虚拟成很多台小的系统，这些拥有完整的操作系统，也具有公网ip，但是配置比较低，可能是1核1G甚至256mb，用来学习玩耍也不错。\n补充-nat-vps 可能我们购买一台vps并不分配完整的公网ip，是和别人公用ip，然后我们拥有几十个端口，这个也不错，可能商家会提供443端口的映射，如果没有的话，可以用cloudflare的修改端口规则把非443端口变成443端口，缺点是必须要用它家的cdn.\n结束 这就是在云服务器上部署服务的教程\n",
+  "wordCount" : "522",
+  "inLanguage": "en",
+  "datePublished": "2025-02-08T10:14:24+08:00",
+  "dateModified": "2025-02-08T10:14:24+08:00",
+  "author":{
+    "@type": "Person",
+    "name": "meteorrain"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "/posts/1/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "meteorrain's blog",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "/favicon.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="/" accesskey="h" title="meteorrain&#39;s blog (Alt + H)">meteorrain&#39;s blog</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <ul id="menu">
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title entry-hint-parent">
+      from web to docker
+    </h1>
+    <div class="post-meta"><span title='2025-02-08 10:14:24 +0800 CST'>February 8, 2025</span>&nbsp;·&nbsp;meteorrain
+
+</div>
+  </header> 
+  <div class="post-content"><p>本教程从基本的网络知识讲起，讲如果部署网路云服务，面向对云服务有一定兴趣，但是对这方面掌握的知识不多的同志。我作为掌握了一定能力和经验的人，来分享一下我的知识。</p>
+<h3 id="提示">提示<a hidden class="anchor" aria-hidden="true" href="#提示">#</a></h3>
+<p>文末有关于内网穿透，虚拟主机，vps，nat-vps的介绍</p>
+<h3 id="什么是web应用">什么是web应用<a hidden class="anchor" aria-hidden="true" href="#什么是web应用">#</a></h3>
+<p>首先，我们从web应用开始讲起，我们可以访问到一个web，分两个平台，一个是客户端，一个是服务端，如果是网站的话，客户端大概率是个游览器，服务端简单来说分为三要素，代码，应用，机器。我们可以用python,nodejs,java等语言编写web服务器的代码，这代码就负责交代网络通信的逻辑，往低端来说，就是自动化脚本。应用，就是运行代码的可执行程序。机器，就是执行代码，运行应用的物理机器，又叫云服务器。举个很简单的例子，我们用一个口语化的语言写下这个代码，如果用户访问，我们返回hello world，然后我们在自己的笔记本电脑运行这个程序，这里注意一下，这个程序不是完成某个任务就停止了，而是一直等待用户来访问。此时，服务端完成了，我们打开游览器，输入ip地址，就可以看到我们计划中输出的hello world了。等等，什么是ip地址，我接下来讲讲。</p>
+<h3 id="什么是ip地址">什么是ip地址<a hidden class="anchor" aria-hidden="true" href="#什么是ip地址">#</a></h3>
+<p>世界上有很多台机器都在运行着web应用，你打开游览器后第一件事可能在想，我要怎么访问我的web呢。ip地址就是个直接的回答。我们把每台机器用ip地址标记，先说成熟的ipv4，大概是张这样的：123:12:85:6，四个数字由冒号相连，每个数字的范围是0到255，我们只需在游览器输入运行web应用的机器的ip地址，就能访问到我们的web了。那么，我的ip是什么呢？</p>
+<h3 id="查看本机ip地址">查看本机ip地址<a hidden class="anchor" aria-hidden="true" href="#查看本机ip地址">#</a></h3>
+<p>windows系统在文件管理器右键，点击&quot;在终端打开&quot;，然后会出现一个黑色的应用，我们把它叫做终端。我们在上面输入<code>ipconfig</code>，回车，然后会返回很多行，有一行是<code>IPv4 地址     : 192.168.44.1</code>，这就是我们的ip地址，让我们在游览器输入192.168.44.1，就可以访问到我们的web了，等等，好像有人在游览器输入的是localhost或者是127.0.0.1，这两个比较特殊，他们代表本机，就是自己这台电脑。然后我们兴奋的把自己的ip地址发送给好朋友，期待他们也能看到自己的杰作，结果对方说根本打不开。为什么呢，这就是nat技术。</p>
+<h3 id="什么是nat">什么是nat<a hidden class="anchor" aria-hidden="true" href="#什么是nat">#</a></h3>
+<p>上面我们说了每台机器都有一个ip地址，但是刚出现ip地址这个东西还是能让每台电脑都分配到一个ip地址，但是可以上网的设备数量增加的实在是太快了，2011年就宣布ip不够用了，出现了一个方案，就是nat技术，简单来说就是很多台机器共用一个ip地址，在现在大多数的家庭环境中，一家，甚至一个社区都可能在用一个ip，那么我的电脑和我的手机用的是同一个wifi，我和我的电脑的ip是一样的，那么我要怎么访问我的电脑上的web呢，方法就是，nat技术分了一部分ip属于内网，大概有两种，一种是192开头的，一种是10开头的，前者大多是个人，家庭网络环境的，后者大多是企业。什么意思呢，就是nat技术的出现划分了公网和内网ip，一般来说很多台电子设备在局域网中互相通信是可以根据内网ip来辨别谁是谁的，但是他们共享同一个公网，在和外面的网络世界沟通的时候，这些很多台电子设备都是一个公网地址，所以，我们的192.168.44.1并不是公网，局域网外的小伙伴，他们的局域网里面的192.168.44.1并不是我们。那么可能我们现在有个问题，我们都是一个公网，那么我们上网的身份是同一个吗，听起来有点离谱，现在我解答这个疑惑，有端口的存在。</p>
+<h3 id="什么是端口">什么是端口<a hidden class="anchor" aria-hidden="true" href="#什么是端口">#</a></h3>
+<p>我们从一个生活中的案例开始讲，我在逛论坛，同时开着微信视频聊天，所以我现在同时收到两个网络信息，不会堵吗？确实不会，我们的网卡有很多门，微信和游览器只使用了一个门，这些门就是端口，一个网卡有65536个端口。回答上面的问题，我和我的邻居虽然都是共享一个公网，但是这个公网是有65536个端口的，我们临时占用了一个端口，所以我和我的邻居虽然是一个公网ip，但是完全不妨碍。好了，我们回归正题，我要怎么让我的小伙伴看到我的web呢？有两条路可以走，一个是在局域网内学习网路知识，一个是使用云服务器，因为云服务器大多是一个机器一个公网ip的，接下来我们走进云服务器的世界。</p>
+<h3 id="什么是云服务器">什么是云服务器<a hidden class="anchor" aria-hidden="true" href="#什么是云服务器">#</a></h3>
+<p>云服务器就是24小时不停运行的机器，这很适合web这种要一直运行监听的任务。云服务器一般是放在机房里面的，有专门的散热和供电，管理，而且可以隔绝噪音。那么这不就是我从来没拔开过充电口的笔记本电脑吗，就是多了个公网ip？对，云服务器就是电脑，而且是专门用于云服务的电脑，它去掉了很多对云服务没用的东西，比如摄像头，鼠标，键盘，显示器，它只需要硬盘，CPU，内存，电源，网卡。但是，在软件方面，它和我们大多数人用的差别很大，它和我们不是同一种系统，它是linux!</p>
+<h3 id="什么是linux">什么是linux<a hidden class="anchor" aria-hidden="true" href="#什么是linux">#</a></h3>
+<p>大体来说，电脑系统分3类，微软的windows，苹果的macos，还有就是开源的linux，还有有些linux也不是开源的，对的，linux不是指某个系统，它是指一类系统，比如说centos,ubuntu,debian,alpine等，他们的关系就是来自于同一个祖先，然后演化走了不同路线，专业地说就是，使用linux内核的不同发行版本，提示一下，我接下来说的主要以debian为例子，这个比较流行。linux和windows,macos差别都有什么呢？一个差别就是linux大多没有图形化桌面，我们控制只能通过终端控制，等等，终端是前面win那个黑色的窗口吗？对的，是同一种东西。那么，我要怎么用终端控制我的linux系统呢？答案是ssh</p>
+<h3 id="什么是ssh">什么是ssh<a hidden class="anchor" aria-hidden="true" href="#什么是ssh">#</a></h3>
+<p>ssh是远程连接机器的工具，怎么使用呢，打开我们win的终端，输入一下指令<code>ssh root@12.13.14.15</code>，这里的12.13.14.15就是我们的云服务器的ip地址，我现在以云服务器为例子开始讲，也可以输入局域网的装了linux系统的电脑的内网ip，我先告诉你，这个<code>root</code>指的我们要作为什么用户来登录，目前先用管理员用户，回车之后，会提示</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>The authenticity of host <span style="color:#e6db74">&#39;12.13.14.15 (12.13.14.15)&#39;</span> can<span style="color:#960050;background-color:#1e0010">&#39;</span>t be established.
+</span></span><span style="display:flex;"><span>ED25519 key fingerprint is SHA256:pjClvxwCBfsadfbufUmPeUM8tvB/Jw+sIcTsb1rU9A.
+</span></span><span style="display:flex;"><span>This key is not known by any other names.
+</span></span><span style="display:flex;"><span>Are you sure you want to <span style="color:#66d9ef">continue</span> connecting <span style="color:#f92672">(</span>yes/no/<span style="color:#f92672">[</span>fingerprint<span style="color:#f92672">])</span>?
+</span></span></code></pre></div><p>我们填<code>yes</code>，回车，然后会出现<code>root@12.13.14.15's password:</code>然后我们输入密码，这里注意，我们输入的是看不见的，输入完回车就可以了，出现<code>root@pc:~$</code>这类字就说明我们登录成功了。等等，我好像忘了，要怎么获得一台装了linux系统的机器</p>
+<h3 id="使用虚拟机">使用虚拟机<a hidden class="anchor" aria-hidden="true" href="#使用虚拟机">#</a></h3>
+<p>我们可以在我们的电脑里面装个虚拟的linux系统，我们去bing搜索一个vmware装虚拟机的教学帖子看一下，很容易的。</p>
+<h3 id="购买云服务器">购买云服务器<a hidden class="anchor" aria-hidden="true" href="#购买云服务器">#</a></h3>
+<p>或者我们可以直接购买云服务器来进行学习，这和虚拟机来学习各有优缺点，国内大厂有阿里云，腾讯云，华为云，国外有甲骨文，谷歌，微软，等等，购买的教程网上也有，不过，易见，虚拟机更方便学习。</p>
+<h3 id="linux基本知识">linux基本知识<a hidden class="anchor" aria-hidden="true" href="#linux基本知识">#</a></h3>
+<p>在学习web前，我们来学习一下常见的linux指令</p>
+<table>
+  <thead>
+      <tr>
+          <th>指令</th>
+          <th>解释</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>pwd</td>
+          <td>查看当前目录位置</td>
+      </tr>
+      <tr>
+          <td>ls</td>
+          <td>列出当前目录</td>
+      </tr>
+      <tr>
+          <td>cd 目录</td>
+          <td>进入某个目录</td>
+      </tr>
+      <tr>
+          <td>rm 文件</td>
+          <td>删除文件</td>
+      </tr>
+      <tr>
+          <td>rm -f 空文件夹</td>
+          <td>删除空文件夹</td>
+      </tr>
+      <tr>
+          <td>rm -rf 文件夹</td>
+          <td>删除文件夹</td>
+      </tr>
+      <tr>
+          <td>mv 源文件或源文件夹 目的地</td>
+          <td>移动文件或文件夹</td>
+      </tr>
+      <tr>
+          <td>touch 文件</td>
+          <td>新建空白文件</td>
+      </tr>
+      <tr>
+          <td>mkdir 目录</td>
+          <td>创建目录</td>
+      </tr>
+      <tr>
+          <td>cat 文件</td>
+          <td>显示文件内容</td>
+      </tr>
+  </tbody>
+</table>
+<p>然后我们需要掌握编辑文本的能力，有两个方法，学会vim/vi，使用ftp，在自己电脑编辑好文件，再上传到linux</p>
+<h3 id="什么是ftp">什么是ftp<a hidden class="anchor" aria-hidden="true" href="#什么是ftp">#</a></h3>
+<p>ftp和ssh都是一个工具，或者说是协议，ssh复制交互执行命令，ftp复制文件管理和传输，命令行的ftp很难用，我推荐使用可视化软件，比如<code>winscp</code>,具体使用教程请搜索bing</p>
+<h3 id="了解nginx和静态站点">了解nginx和静态站点<a hidden class="anchor" aria-hidden="true" href="#了解nginx和静态站点">#</a></h3>
+<p>我们最简单的一种web叫做静态站点，组成是什么呢，应用，站点文件，装linux的机器。nginx是我最熟悉而且很流行的一个web应用，我先讲讲它。怎么在linux安装nginx呢？</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>apt update
+</span></span><span style="display:flex;"><span>apt upgrade -y
+</span></span><span style="display:flex;"><span>apt install nginx -y
+</span></span></code></pre></div><p>前两行是更新软件用的，偶尔执行一遍就好了，第三句是安装<code>nginx</code>，注意，我使用的是debian，ubuntu和它类似，但是centos和alpine不一样，推荐使用debian进行学习，<code>apt</code>是包管理器，相当于我们手机的应用商店，<code>-y</code>是参数，表示接下来可能遇到的询问都回答<code>yes</code>，那么接下来我们要怎么使用<code>nginx</code>搭建一个静态<code>web</code>呢，我们需要静态站点的文件，最主要的是html，不过其他文件也是可以的，比如说写着<code>hello world</code>的一个<code>web.txt</code>，或者是一个图片<code>web.png</code>，或者是一个视频，总之，我们通过<code>ftp</code>工具把静态站点的文件放到一个目录就可以开始了，我们要怎么让<code>nginx</code>展示我们的静态文件呢？回答是，我们要修改<code>nginx</code>的配置文件，我们使用<code>vim</code>修改或者<code>ftp</code>把文件提取出来再修改，接下来我们打开一个文件，在<code>/etc/nginx/sites-enabled/</code>下会有个默认的配置文件<code>default</code>，如果没有可以去<code>/etc/nginx/conf.d/</code>看看，那么我们看看这个配置文件张什么样子</p>
+<pre tabindex="0"><code class="language-conf" data-lang="conf">server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        root /var/www/html;
+        index index.html index.htm index.nginx-debian.html;
+        server_name _;
+        location / {
+                try_files $uri $uri/ =404;
+        }
+}
+</code></pre><p>原文件有很多用<code>#</code>开头的行，他们是注释，我去掉了就是上面这个样子，一个<code>server</code>加上大括号，表示的是一个站点，是的，我们可以在这个文件放很多个<code>server{}</code>，然后就可以在一台机器放置很多的站点，这就是虚拟主机的基本原理，而且因为这样，虚拟主机的价格远低于云服务器，<code>server</code>块有几行是我们目前需要的，<code>listen 端口</code>表示nginx要监听的端口，也就是我们在游览器除了要输入ip地址还要在后面加个冒号再写的端口号，就像这样<code>11.12.13.14:80</code>，不过，默认端口是80和443，我们不输入，游览器就使用了默认值，<code>root 文件夹</code>，这表示我们的静态站点的文件夹位置，<code>index 文件类型</code>，表示我们的网站默认页的文件名，一般写<code>index index.html;</code>就可以了，所以说我们的配置项目前只需要这样</p>
+<pre tabindex="0"><code class="language-conf" data-lang="conf">server{
+    listen 80;
+    root /app;
+    index index.html;
+}
+</code></pre><p>我写的是<code>/app</code>，这得看我们把静态站点的文件放到哪里了，假如我们目录有个<code>web.txt</code>，那么我们在游览器就可以输入<code>http://12.13.14.15:80/web.txt</code>，然后就显示出来里面的文件了，但是我们可能有个疑问，我们要的是网站，而不是这种纯文本查看器，要怎么做，首先，我们要了解web的本质，简单来说就是文件传输的作用，如果文件是<code>txt</code>类型，就会发送到我们的游览器，然后由游览器决定怎么把它显示出来，如果是<code>html</code>，游览器显示的就非常丰富了，而且还有表单等交互功能，所以我们要得到一个<code>html</code>文件，我们有两条路，一条是自己写，一条是使用工具。</p>
+<h3 id="手写html">手写html<a hidden class="anchor" aria-hidden="true" href="#手写html">#</a></h3>
+<p>最基本是这样的</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span><span style="color:#75715e">&lt;!DOCTYPE html&gt;</span>
+</span></span><span style="display:flex;"><span>&lt;<span style="color:#f92672">html</span> <span style="color:#a6e22e">lang</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;en&#34;</span>&gt;
+</span></span><span style="display:flex;"><span>&lt;<span style="color:#f92672">head</span>&gt;
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">head</span>&gt;
+</span></span><span style="display:flex;"><span>&lt;<span style="color:#f92672">body</span>&gt;
+</span></span><span style="display:flex;"><span>    hello world
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">body</span>&gt;
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">html</span>&gt;
+</span></span></code></pre></div><p>具体要怎么写，我们可以学习相关的知识，不过，我们学习静态站点这个也能用</p>
+<h3 id="使用静态站点生成器">使用静态站点生成器<a hidden class="anchor" aria-hidden="true" href="#使用静态站点生成器">#</a></h3>
+<p>有一类工具是静态站点生成器，作用是把文本变成好看的<code>html</code>，比如说<code>hugo</code>，<code>hexo</code>，<code>mkdocs</code>，具体做法可以bing搜索</p>
+<h3 id="运行nginx">运行nginx<a hidden class="anchor" aria-hidden="true" href="#运行nginx">#</a></h3>
+<p>把配置文件写好，站点文件准备好，我们就可以启动<code>nginx</code>了，怎么启动呢？输入<code>nginx</code>，如果本来是关闭又启动了，而且启动成功了，那么就不会有任何回复，如果显示</p>
+<pre tabindex="0"><code>nginx: [emerg] bind() to 0.0.0.0:80 failed (98: Address already in use)
+nginx: [emerg] bind() to [::]:80 failed (98: Address already in use)
+</code></pre><p>就是意味着启动过了，我们要重启，使用<code>nginx -s reload</code>，如果要停止，输入<code>nginx -s stop</code>，注意，我们每次修改<code>nginx</code>的配置文件都要重启才能生效，如果出现了报错，我们可以网上搜索看看怎么解决。目前来看，好像只能静态访问，没什么用，那么，我们可以介绍一下，世界上最好的语言，php</p>
+<h3 id="什么是php">什么是php<a hidden class="anchor" aria-hidden="true" href="#什么是php">#</a></h3>
+<p>php是一个编程语言，专门负责web的，我们使用最流行的<code>wordpress</code>开演示怎么安装php网站，首先安装php相关的软件<code>apt install php-fpm php-cli php-common php-mysql php-gd php-curl php-xml php-mbstring -y</code>，然后下载wordpress并解压</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>mkdir /var/php
+</span></span><span style="display:flex;"><span>cd /var/php
+</span></span><span style="display:flex;"><span>wget https://cn.wordpress.org/latest-zh_CN.zip
+</span></span><span style="display:flex;"><span>unzip latest-zh_CN.zip
+</span></span></code></pre></div><p>然后在<code>/var/php/wordpress</code>下面就是wordpress的文件了，我们修改nginx的配置文件</p>
+<pre tabindex="0"><code class="language-conf" data-lang="conf">server {
+        listen 80 ;
+        root /var/php/wordpress;
+        index index.html index.php;
+        location ~ \.php$ {
+                fastcgi_param SCRIPT_FILENAME /var/php/wordpress$fastcgi_script_name;
+                fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+                fastcgi_index index.php;
+                include fastcgi_params;
+        }
+
+}
+</code></pre><p>注意一下<code>/run/php/php8.3-fpm.sock</code>这个要看我们安装的php版本，我们<code>ls /run/php</code>看看目录下有什么文件
+配置完成后，我们可以在游览器用ip访问，如果是wordpress的安装目录，说明我们成功了，但是我们在游览器配置wordpress发现它要我们填写数据库，那么什么是数据库呢？</p>
+<h3 id="什么是数据库">什么是数据库<a hidden class="anchor" aria-hidden="true" href="#什么是数据库">#</a></h3>
+<p>如果我们的网站是动态的并且要有记录，那么我们要有地方存放我们产生的信息，最粗糙的方法是用一个txt文件存放我们的信息，但是弊端很多，打开很慢，查询很麻烦，而且很容易文件损坏，所以有了数据库的诞生，我们安装一个数据库服务，然后wordpress作为客户端进行增加，修改，查询，删除等操作，看起来就像是编辑查看一个excel文件一样，我们获得数据库有2中方式，远程数据库，或者我们本地搭建一个</p>
+<h3 id="远程数据库">远程数据库<a hidden class="anchor" aria-hidden="true" href="#远程数据库">#</a></h3>
+<p>有很多平台可以给我们小型的数据库来学习，比如说sqlpub，MongoDB等等，具体上网搜索一下，我们只需要获得几个参数，主机名，就是这个数据库所在机器的位置，端口，就是数据库使用的端口，用户名，密码，和数据库的名字</p>
+<h3 id="本地搭建数据库">本地搭建数据库<a hidden class="anchor" aria-hidden="true" href="#本地搭建数据库">#</a></h3>
+<p>有很多种数据库，我们以很流行的mysql来做演示，首先，我们安装mysql服务端<code>apt install mysql-server</code>，然后我们进入mysql客户端环境<code>mysql -u root -p</code>，写下你的root密码登录就好，接下来创建一个数据库和用户，注意，密码需要复杂点</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-mysql" data-lang="mysql"><span style="display:flex;"><span><span style="color:#66d9ef">CREATE</span> <span style="color:#66d9ef">DATABASE</span> web;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">USE</span> mysql;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">CREATE</span> <span style="color:#66d9ef">USER</span> <span style="color:#e6db74">&#39;web&#39;</span><span style="color:#f92672">@</span><span style="color:#e6db74">&#39;%&#39;</span> <span style="color:#66d9ef">IDENTIFIED</span> <span style="color:#66d9ef">WITH</span> mysql_native_password <span style="color:#66d9ef">BY</span> <span style="color:#e6db74">&#39;passwordofweb&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">GRANT</span> <span style="color:#66d9ef">ALL</span> <span style="color:#66d9ef">PRIVILEGES</span> <span style="color:#66d9ef">ON</span> web.<span style="color:#f92672">*</span> <span style="color:#66d9ef">TO</span> <span style="color:#e6db74">&#39;web&#39;</span><span style="color:#f92672">@</span><span style="color:#e6db74">&#39;%&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">FLUSH</span> <span style="color:#66d9ef">PRIVILEGES</span>;
+</span></span></code></pre></div><p>然后我们就可以在wordpress输入数据库的配置，开始wordpress之旅。接下来我们可以不想要ip访问，毕竟云服务器的公网ip很难记，那么我们需要域名。</p>
+<h3 id="什么是域名">什么是域名<a hidden class="anchor" aria-hidden="true" href="#什么是域名">#</a></h3>
+<p>域名是一个类似快捷方式的东西，它是一个标记，用容易记住的域名来代表难记的ip地址，这个指向过程叫做dns，我们修改指向叫做更新dns记录，那么我们需要个域名，可以使用us.kg，cloudns等免费的二级域名，也可以到spaceship，namecheap等平台购买一级域名，一般是按年买的。我们想一下域名是怎么起作用的，我们在游览器输入ip是可以直接访问的，但是我们输入域名是要找到指向的ip的，那么电脑是怎么查询的呢，答案是它是去dns服务器查询的，一般电脑网路配置会设置自己的dns服务器，这个一般不用理，dns服务器会去到上层的dns服务器查询，直到在根dns服务器查询到我们的域名和指向的关系，我们购买了域名，本质上就是获得了修改根dns服务器记录的权限，然后我们购买的平台就是根dns服务器的代理商。那么我们要怎么修改dns记录呢，答案是我们也要通过一个中间平台，就是在我们购买了域名的平台和我们域名所有者直接加个name server服务器，很多平台具备dns解析功能，大厂有阿里云，腾讯云，cloudflare，我接下来用cloudflare来举例，我们在dns解析平台添加域名的时候会给我们提供他们家的name server服务器的域名，我们就要到购买域名的平台修改我们的name server记录值，这就完成了域名购买平台和dns解析平台之间的验证，我们修改dns，也就是添加删除dns记录，有很多种记录，我说一下常见的记录，A记录，负责把域名指向一个ipv4地址，AAAA记录，负责把域名指向一个ipv6地址，CNAME记录，负责把域名指向另一个域名，对的，这就是层层指向的关系，域名指向域名，最后会指向一个ip，MX记录，和域名邮件有关系，TXT记录，一般是负责验证功能的，通过验证你是否能够修改TXT记录来验证域名的所有权。我们要把我们的域名指向我们的云服务器，只需要添加一行A记录指向云服务器的ip就可以了，等等，平台上右边可以填我们指向的ip，左边好像也要填东西，左边就负责我们的子域名设置，对的，我们购买了一个域名hello.com，那么我们也拥有了a.hello.com和b.hello.com等无数的子域名，如果我们填@，就意味着使用hello.com这个域名，现在我们添加A记录从@指向12.13.14.15，就可以在游览器输入域名访问我们的web了，等等，我看游览器显示连接不安全不爽了很久，为什么别人的web不会这样，那我们讲讲https</p>
+<h3 id="什么是https">什么是https<a hidden class="anchor" aria-hidden="true" href="#什么是https">#</a></h3>
+<p>我们目前的web使用的web传输协议是http，对的，叫做传输协议，因为本质上就是文件传输，这些信息在互联网上是不加密的，中间的设备都可以直接查看，修改这些数据，非常的不安全，那么我们需要加密这些数据，用户需要解密这些数据得到有用的，怎么配置加密呢？我们需要申请一个tls证书，http和https差别的s，指的就是tls,具体加密的原理是什么呢，我们有个算法，可以通过私钥把原信息加密成加密信息，加密信息通过公钥解密成原信息，所以我们传输加密信息的同时传递公钥，游览器获得公钥再解密就可以获得原信息了，这可以防止中间人修改数据再给客户，因为私钥和公钥是一一对应的，中间人没法获得私钥来制造出公钥可以解密的信息，那么tls要怎么得到呢，我推荐去ohttps申请，还有别的方法，可以自行搜索.提示一下，http的默认端口是80，https的默认端口是443总之，我们会获得两个文件，分别是公钥和私钥。接下来就是在web应用配置tls了。</p>
+<h3 id="nginx配置tls">nginx配置tls<a hidden class="anchor" aria-hidden="true" href="#nginx配置tls">#</a></h3>
+<p>我们只需修改几行配置文件</p>
+<pre tabindex="0"><code class="language-conf" data-lang="conf">server {
+        listen 80 tls;
+        server_name hello.com;
+        ssl_certificate 公钥位置;
+        ssl_certificate_key 私钥位置;
+        root /var/php/wordpress;
+        index index.html index.php;
+        location ~ \.php$ {
+                fastcgi_param  SCRIPT_FILENAME  /var/php/wordpress$fastcgi_script_name;
+                fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+                fastcgi_index index.php;
+                include fastcgi_params;
+        }
+
+}
+</code></pre><p>然后重启nginx就可以了，我们就可以用域名https访问我们的web站点了。</p>
+<h3 id="反向代理">反向代理<a hidden class="anchor" aria-hidden="true" href="#反向代理">#</a></h3>
+<p>我们学会了建网站，在逛github发现了很多有趣的东西，比如说alist,看了看简介，发现这个应用默认监听5244端口，那么我们要怎么让它可以用域名访问并且使用80/443端口呢，顺便加个tls，答案就是反向代理，我们就用<code>nginx</code>吧，他的反向代理的功能也是很强的，怎么使用呢，我们添加一个server块，填上下面的配置</p>
+<pre tabindex="0"><code class="language-conf" data-lang="conf">server {
+        listen 443 tls;
+        listen [::]:443 tls;
+        server_name 域名;
+        ssl_certificate 公钥位置;
+        ssl_certificate_key 私钥位置;
+        location / {
+                proxy_pass http://localhost:5244;
+                proxy_http_version 1.1;
+                proxy_read_timeout 300;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection &#34;upgrade&#34;;
+                proxy_set_header Host $http_host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Real-PORT $remote_port;
+        }
+}
+</code></pre><p>这样子就可以实现域名访问了，实现了反向代理。</p>
+<h3 id="docker">docker<a hidden class="anchor" aria-hidden="true" href="#docker">#</a></h3>
+<p>我们在搭建这些东西的时候发现要配置环境好麻烦，想着，如果可以自动配置环境就好了，docker就是干这个的，一个docker里面装了个轻量的系统，然后我们直接运行这个虚拟系统就可以了。怎么安装docker呢，我们可以去docker的官网看，我把安装步骤贴下来。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e">#卸载旧的docker</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> pkg in docker.io docker-doc docker-compose podman-docker containerd runc; <span style="color:#66d9ef">do</span> sudo apt-get remove $pkg; <span style="color:#66d9ef">done</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#安装docker前的准备</span>
+</span></span><span style="display:flex;"><span>sudo apt-get update
+</span></span><span style="display:flex;"><span>sudo apt-get install ca-certificates curl
+</span></span><span style="display:flex;"><span>sudo install -m <span style="color:#ae81ff">0755</span> -d /etc/apt/keyrings
+</span></span><span style="display:flex;"><span>sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+</span></span><span style="display:flex;"><span>sudo chmod a+r /etc/apt/keyrings/docker.asc
+</span></span><span style="display:flex;"><span>echo <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span><span style="color:#e6db74">&#34;deb [arch=</span><span style="color:#66d9ef">$(</span>dpkg --print-architecture<span style="color:#66d9ef">)</span><span style="color:#e6db74"> signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74"></span><span style="color:#66d9ef">$(</span>. /etc/os-release <span style="color:#f92672">&amp;&amp;</span> echo <span style="color:#e6db74">&#34;</span>$VERSION_CODENAME<span style="color:#e6db74">&#34;</span><span style="color:#66d9ef">)</span><span style="color:#e6db74"> stable&#34;</span> | <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>sudo tee /etc/apt/sources.list.d/docker.list &gt; /dev/null
+</span></span><span style="display:flex;"><span>sudo apt-get update
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#安装docker</span>
+</span></span><span style="display:flex;"><span>sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+</span></span></code></pre></div><p>我们可以讲讲docker的原理是什么，开发人员编写一个文件叫做Dockerfile，这里面的内容就是从一个基本的轻量级系统配置，比如说docker的<code>nginx</code>，里面的内容可能就是这样的</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-Dockerfile" data-lang="Dockerfile"><span style="display:flex;"><span><span style="color:#75715e">#从基本的debian开始</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">FROM</span><span style="color:#e6db74"> debian</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#75715e">#安装nginx</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">RUN</span> apt install nginx<span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#75715e">#启动nginx</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">CMD</span> [<span style="color:#960050;background-color:#1e0010">&#39;nginx&#39;</span>]<span style="color:#960050;background-color:#1e0010">
+</span></span></span></code></pre></div><p><code>FROM</code>指的是从哪个基础镜像开始，<code>RUN</code>表示执行的命令，<code>CMD</code>表示启动命令的指令。然后docker通过这个文件运行生成这个镜像，使用的命令是<code>docker build .</code>里面的<code>.</code>代表的是在以当前目录为环境生成，结果就是产生了一个虚拟系统文件，里面装的是一个系统，但是只是个文件，没有在运行，这叫做镜像，我们可以用<code>docker images</code>看我们有什么镜像。我们要运行就需要使用这个命令<code>docker run 容器名字</code>，对了，我们说一下<code>Dockerfile</code>里面<code>RUN</code>和<code>CMD</code>的区别，<code>RUN</code>实在镜像生成的时候运行的，<code>CMD</code>实在运行镜像的时候运行的，我们运行了镜像，就是真的开始运行里面的程序了，这个就叫做容器，我贴一下常见docker命令</p>
+<table>
+  <thead>
+      <tr>
+          <th>命令</th>
+          <th>含义</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>docker ps</td>
+          <td>查看当前运行的容器</td>
+      </tr>
+      <tr>
+          <td>docker ps -a</td>
+          <td>查看所有容器，运行或者不运行</td>
+      </tr>
+      <tr>
+          <td>docker images</td>
+          <td>查看有的镜像</td>
+      </tr>
+      <tr>
+          <td>docker run 镜像</td>
+          <td>运行镜像</td>
+      </tr>
+      <tr>
+          <td>docker restart 容器</td>
+          <td>重启容器</td>
+      </tr>
+      <tr>
+          <td>docker stop 容器</td>
+          <td>停止容器</td>
+      </tr>
+      <tr>
+          <td>docker build .</td>
+          <td>当前目录生成镜像</td>
+      </tr>
+      <tr>
+          <td>docker pull 镜像</td>
+          <td>到docker hub拉取镜像</td>
+      </tr>
+      <tr>
+          <td>docker cp 源路径 目标路径</td>
+          <td>在容器和主机直接复制文件或文件夹</td>
+      </tr>
+      <tr>
+          <td>docker exec 容器 命令</td>
+          <td>在容器执行命令</td>
+      </tr>
+      <tr>
+          <td>docker exec -it 容器 bash</td>
+          <td>进入容器</td>
+      </tr>
+      <tr>
+          <td>我们可以让一个文件或文件夹是容器和主机的共享文件，只需在<code>docker run</code>中添加参数就可以了<code>-v 本机路径:容器路径</code>，如果要完成端口映射就需要添加参数<code>-p 本机端口:容器端口</code>，如果容器要访问到另一个容器可以使用ip地址，因为每个容器都会分配到一个内网ip，或者我们可以把他们拉到一个网络中，然后使用容器的名字作为主机名。具体可以搜索一下。</td>
+          <td></td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="补充-内网穿透">补充-内网穿透<a hidden class="anchor" aria-hidden="true" href="#补充-内网穿透">#</a></h3>
+<p>我们可能不想买个云服务器，那么我们可以用自己的电脑，然后通过一台有公网的机器作为中间介质，很多平台提供内网穿透的服务，我推荐cloudflare的tunnel，缺点是很慢，优点是可以使用自己的域名，具体可以搜索一下，其他的比如说ngrok也不错</p>
+<h3 id="补充-虚拟主机">补充-虚拟主机<a hidden class="anchor" aria-hidden="true" href="#补充-虚拟主机">#</a></h3>
+<p>虚拟主机就是提供mysql和php环境和一定的内存的共享主机，往往给我们ftp，mysql的账号密码，这个也不错</p>
+<h3 id="补充-vps">补充-vps<a hidden class="anchor" aria-hidden="true" href="#补充-vps">#</a></h3>
+<p>vps就是一台云服务器使用软件虚拟成很多台小的系统，这些拥有完整的操作系统，也具有公网ip，但是配置比较低，可能是1核1G甚至256mb，用来学习玩耍也不错。</p>
+<h3 id="补充-nat-vps">补充-nat-vps<a hidden class="anchor" aria-hidden="true" href="#补充-nat-vps">#</a></h3>
+<p>可能我们购买一台vps并不分配完整的公网ip，是和别人公用ip，然后我们拥有几十个端口，这个也不错，可能商家会提供443端口的映射，如果没有的话，可以用cloudflare的修改端口规则把非443端口变成443端口，缺点是必须要用它家的cdn.</p>
+<h3 id="结束">结束<a hidden class="anchor" aria-hidden="true" href="#结束">#</a></h3>
+<p>这就是在云服务器上部署服务的教程</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+    </ul>
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2025 <a href="/">meteorrain&#39;s blog</a></span> · 
+
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+</body>
+
+</html>
