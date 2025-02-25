@@ -6,8 +6,36 @@
     <description>Recent content on 0031400&#39;s blog</description>
     <generator>Hugo -- 0.141.0</generator>
     <language>zh-cn</language>
-    <lastBuildDate>Sat, 08 Feb 2025 10:14:24 +0800</lastBuildDate>
+    <lastBuildDate>Tue, 25 Feb 2025 10:14:24 +0800</lastBuildDate>
     <atom:link href="/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>onedrive huggingface 图床</title>
+      <link>/posts/2/</link>
+      <pubDate>Tue, 25 Feb 2025 10:14:24 +0800</pubDate>
+      <guid>/posts/2/</guid>
+      <description>&lt;h3 id=&#34;用处&#34;&gt;用处&lt;/h3&gt;
+&lt;p&gt;onedrive本来就有&amp;quot;嵌入&amp;quot;功能,把网盘的文件提取出外链,但是我发现得到的链接有个302跳转,并且跳转后不是图片,而是包含图片的html,好像不能直接做图床,于是我用playwright无头游览器,提取出图片,鉴于playwright安装要大约1G,我部署到抱脸上.
+使用方法:通过onedrive&amp;quot;嵌入&amp;quot;功能获得url,例如&lt;a href=&#34;https://1drv.ms/i/c/31c90366ccabe857/IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE?width=1920&amp;amp;height=1080&#34;&gt;https://1drv.ms/i/c/31c90366ccabe857/IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE?width=1920&amp;amp;height=1080&lt;/a&gt;,我们提取出userid 31c90366ccabe857和fileid IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE ,复制我的空间&lt;a href=&#34;https://huggingface.co/spaces/hellometeor/img&#34;&gt;https://huggingface.co/spaces/hellometeor/img&lt;/a&gt;修改files/app.js代码的ALLOWED_USER_IDS,列表里面填上你的userid ,请求路径 /userid/fileid&lt;/p&gt;
+&lt;h3 id=&#34;原理&#34;&gt;原理&lt;/h3&gt;
+&lt;p&gt;playwright 无头游览器&lt;/p&gt;
+&lt;h3 id=&#34;nginx-反向代理&#34;&gt;nginx 反向代理&lt;/h3&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code class=&#34;language-conf&#34; data-lang=&#34;conf&#34;&gt;server {
+    listen 80;
+    listen [::]:80;
+    server_name 你的域名;
+
+    location / {
+        proxy_pass https://space域名 ;
+        proxy_ssl_server_name on;
+        proxy_set_header Host space域名 ;
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&#34;cloudflare-缓存规则&#34;&gt;cloudflare 缓存规则&lt;/h3&gt;
+&lt;p&gt;主机名等于&amp;quot;你的域名&amp;quot;
+缓存资格=符合缓存条件
+边缘 TTL = 1 年
+浏览器 TTL = 1 年&lt;/p&gt;</description>
+    </item>
     <item>
       <title>from web to docker</title>
       <link>/posts/1/</link>
