@@ -5,12 +5,12 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <meta name="robots" content="index, follow">
-<title>onedrive huggingface 图床 | 0031400&#39;s blog</title>
+<title>onedrive google 图床 | 0031400&#39;s blog</title>
 <meta name="keywords" content="">
 <meta name="description" content="起因
-onedrive本来就有&quot;嵌入&quot;功能,把网盘的文件提取出外链,但是我发现得到的链接有个302跳转,并且跳转后不是图片,而是包含图片的html,好像不能直接做图床,于是我用playwright无头游览器,提取出图片,鉴于playwright安装要大约1G,我部署到抱脸上.
+onedrive 和 google 云盘的分享链接都可以设置任何人可查看,且不需要登录,于是可以把这个作为个人图床
 使用方法
-通过onedrive&quot;嵌入&quot;功能获得url,例如https://1drv.ms/i/c/31c90366ccabe857/IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE?width=1920&amp;height=1080,我们提取出userid 31c90366ccabe857和fileid IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE ,复制我的空间https://huggingface.co/spaces/hellometeor/img修改files/app.js代码的ALLOWED_USER_IDS,列表里面填上你的userid ,请求路径 /userid/fileid
+获得分享链接,onedrive提取出userid和fileid,google云盘提取出fileid,onedrive url /o/userid/fileid,google云盘 /g/fileid,onedrive默认限制userid,填写自己的userid,或者注释相关代码
 原理
 playwright 无头游览器
 nginx 反向代理
@@ -29,7 +29,222 @@ cloudflare 缓存规则
 主机名等于&quot;你的域名&quot;
 缓存资格=符合缓存条件
 边缘 TTL = 1 年
-浏览器 TTL = 1 年">
+浏览器 TTL = 1 年
+源码
+const express = require(&#39;express&#39;);
+const axios = require(&#39;axios&#39;);
+const { chromium } = require(&#39;playwright&#39;);
+const fs = require(&#39;fs&#39;).promises;
+const path = require(&#39;path&#39;);
+
+const app = express();
+const port = 3000;
+
+// 定义允许的 user ID 列表 (OneDrive)
+const ALLOWED_USER_IDS = [&#39;31c90366ccabe857&#39;]; // Replace with your actual list
+
+// 公共函数：格式化当前时间
+function getFormattedNow() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() &#43; 1;
+    const day = now.getDate();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    const second = now.getSeconds();
+    return `${year}年${month}月${day}日${hour}时${minute}分${second}秒`;
+}
+
+// 公共函数：下载图片 (使用 Playwright)
+async function downloadImageWithPlaywright(url, svgSelector, time, id) {
+    let browser;
+    try {
+        browser = await chromium.launch({
+            headless: true,
+            args: [&#39;--no-sandbox&#39;, &#39;--disable-setuid-sandbox&#39;],
+        });
+        const page = await browser.newPage();
+        await page.goto(url, { waitUntil: &#39;networkidle&#39; });
+        // await page.waitForTimeout(2000); // 显式等待2秒
+        await page.click(svgSelector);
+        const download = await page.waitForEvent(&#39;download&#39;);
+        const imageBuffer = await download.createReadStream().then(stream =&gt; {
+            return new Promise((resolve, reject) =&gt; {
+                const chunks = [];
+                stream.on(&#39;data&#39;, chunk =&gt; chunks.push(chunk));
+                stream.on(&#39;error&#39;, reject);
+                stream.on(&#39;end&#39;, () =&gt; resolve(Buffer.concat(chunks)));
+            });
+        });
+        return imageBuffer;
+    } catch (error) {
+        console.error(`${time} error ${id} Error downloading image with Playwright:`, error);
+        return null;
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
+    }
+}
+
+// 公共函数：保存图片到本地
+async function saveImageToLocal(baseDir, filename, imageBuffer, time, id) {
+    const dirPath = path.join(__dirname, baseDir, path.dirname(filename)); // 修改：添加 path.dirname(filename)
+    const filePath = path.join(__dirname, baseDir, filename); // 修改：使用完整的 filename
+
+    try {
+        try {
+            await fs.access(dirPath); // 检查目录是否存在
+        } catch (error) {
+            // 目录不存在，创建它
+            await fs.mkdir(dirPath, { recursive: true }); // recursive: true 可以创建多级目录
+        }
+        await fs.writeFile(filePath, imageBuffer);
+    } catch (error) {
+        console.error(`${time} error ${id} Error saving image to local file:`, error);
+    }
+}
+
+
+// OneDrive 路由
+app.get(&#39;/o/:userid/:pictureid&#39;, async (req, res) =&gt; {
+    const time = getFormattedNow();
+    const { userid, pictureid } = req.params;
+    const filePath = path.join(__dirname, &#39;o&#39;, userid, `${pictureid}`);
+
+    // 检查 user ID 是否在允许的列表中
+    if (!ALLOWED_USER_IDS.includes(userid)) {
+        console.log(`${time} userid not in ${userid}`);
+        return res.status(404).send(&#39;&#39;); // Or 403 Forbidden
+    }
+
+    const baseOneDriveUrl = `https://1drv.ms/i/c/${userid}/${pictureid}`;
+    const svgElementSelector = &#39;[aria-label=&#34;Download&#34;]&#39;;
+
+    try {
+        // 1. 检查本地文件是否存在
+        try {
+            await fs.access(filePath); // 检查文件是否存在
+            console.log(`${time} 缓存 OneDrive: ${userid}/${pictureid}`);
+            const imageBuffer = await fs.readFile(filePath);
+            res.writeHead(200, { &#39;Content-Disposition&#39;: &#39;inline&#39; });
+            res.end(imageBuffer);
+            return;
+        } catch (error) {
+            // 文件不存在，继续从 OneDrive 下载
+        }
+
+        // 2. 获取重定向后的 URL
+        async function getRedirectedUrl(url, time, userid, pictureid) {
+            try {
+                const response = await axios.get(url, {
+                    maxRedirects: 0,
+                    validateStatus: null
+                });
+
+                if (response.status === 404) {
+                    return &#34;404&#34;; // Indicate that the resource was not found
+                } else if (response.status &gt;= 300 &amp;&amp; response.status &lt; 400 &amp;&amp; response.headers.location) {
+                    return response.headers.location;
+                } else {
+                    console.error(`${time} error ${userid}/${pictureid} No redirect found. Status:`, response.status);
+                    return null;
+                }
+            } catch (error) {
+                console.error(`${time} error ${userid}/${pictureid} Error getting redirected URL:`, error);
+                return null;
+            }
+        }
+
+        const redirectedUrl = await getRedirectedUrl(baseOneDriveUrl,time,userid,pictureid);
+        if (redirectedUrl == &#34;404&#34;) {
+            console.log(`${time} 404 ${userid}/${pictureid}`);
+            return res.status(404).send(&#34;&#34;);
+        }
+        if (!redirectedUrl) {
+            return res.status(500).send(&#39;&#39;);
+        }
+
+        // 3. 使用 Playwright 下载图片
+        const imageBuffer = await downloadImageWithPlaywright(redirectedUrl, svgElementSelector, time, `${userid}/${pictureid}`);
+        if (!imageBuffer) {
+            return res.status(500).send(&#39;&#39;);
+        }
+
+        // 4. 保存图片到本地
+        await saveImageToLocal(&#39;o&#39;, path.join(userid, `${pictureid}`), imageBuffer, time, `${userid}/${pictureid}`);
+
+        // 5. 设置响应头并发送图片
+        res.writeHead(200, { &#39;Content-Disposition&#39;: &#39;inline&#39; });
+        console.log(`${time} 未缓存 OneDrive: ${userid}/${pictureid}`);
+        res.end(imageBuffer);
+    } catch (error) {
+        console.error(`${time} error OneDrive: ${userid}/${pictureid}`, error);
+        res.status(500).send(&#39;&#39;);
+    }
+});
+
+
+// Google Drive 路由
+app.get(&#39;/g/:fileid&#39;, async (req, res) =&gt; {
+    const time = getFormattedNow();
+    const { fileid } = req.params;
+    const filePath = path.join(__dirname, &#39;g&#39;, `${fileid}`); // 修改了路径
+
+    const baseGoogleDriveUrl = `https://drive.google.com/file/d/${fileid}/view?usp=sharing`;
+    const svgElementSelector = &#39;[aria-label=&#34;Download&#34;]&#39;;
+
+    try {
+        // 1. 检查本地文件是否存在
+        try {
+            await fs.access(filePath);
+            console.log(`${time} 缓存 Google Drive: ${fileid}`);
+            const imageBuffer = await fs.readFile(filePath);
+            res.writeHead(200, { &#39;Content-Disposition&#39;: &#39;inline&#39; });
+            res.end(imageBuffer);
+            return;
+        } catch (error) {
+            // 文件不存在，继续从 Google Drive 下载
+        }
+
+        // 2. 使用 Playwright 下载图片
+        const imageBuffer = await downloadImageWithPlaywright(baseGoogleDriveUrl, svgElementSelector, time, fileid);
+        if (!imageBuffer) {
+            return res.status(500).send(&#39;&#39;);
+        }
+
+        // 3. 保存图片到本地
+        await saveImageToLocal(&#39;g&#39;, `${fileid}`, imageBuffer, time, fileid);
+
+        // 4. 设置响应头并发送图片
+        res.writeHead(200, { &#39;Content-Disposition&#39;: &#39;inline&#39; });
+        console.log(`${time} 未缓存 Google Drive: ${fileid}`);
+        res.end(imageBuffer);
+
+    } catch (error) {
+        console.error(`${time} error Google Drive: ${fileid}`, error);
+        res.status(500).send(&#39;&#39;);
+    }
+});
+
+
+// 启动服务器
+app.listen(port, () =&gt; {
+    console.log(`服务启动 http://localhost:${port}`);
+});
+Dockerfile
+FROM node
+RUN mkdir /app
+WORKDIR /app
+RUN chown -R node:node /app
+COPY ./files/package.json /app
+RUN npm i
+RUN npx playwright install-deps
+USER node
+RUN npx playwright install
+COPY ./files/app.js /app
+CMD [&#34;node&#34;,&#34;./app.js&#34;]
+">
 <meta name="author" content="0031400">
 <link rel="canonical" href="/posts/2/">
 <link crossorigin="anonymous" href="/assets/css/stylesheet.45e028aa8ce0961349adf411b013ee39406be2c0bc80d4ea3fc04555f7f4611a.css" integrity="sha256-ReAoqozglhNJrfQRsBPuOUBr4sC8gNTqP8BFVff0YRo=" rel="preload stylesheet" as="style">
@@ -79,22 +294,23 @@ cloudflare 缓存规则
     </style>
 </noscript><meta property="og:url" content="/posts/2/">
   <meta property="og:site_name" content="0031400&#39;s blog">
-  <meta property="og:title" content="onedrive huggingface 图床">
-  <meta property="og:description" content="起因 onedrive本来就有&#34;嵌入&#34;功能,把网盘的文件提取出外链,但是我发现得到的链接有个302跳转,并且跳转后不是图片,而是包含图片的html,好像不能直接做图床,于是我用playwright无头游览器,提取出图片,鉴于playwright安装要大约1G,我部署到抱脸上.
-使用方法 通过onedrive&#34;嵌入&#34;功能获得url,例如https://1drv.ms/i/c/31c90366ccabe857/IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE?width=1920&amp;height=1080,我们提取出userid 31c90366ccabe857和fileid IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE ,复制我的空间https://huggingface.co/spaces/hellometeor/img修改files/app.js代码的ALLOWED_USER_IDS,列表里面填上你的userid ,请求路径 /userid/fileid
+  <meta property="og:title" content="onedrive google 图床">
+  <meta property="og:description" content="起因 onedrive 和 google 云盘的分享链接都可以设置任何人可查看,且不需要登录,于是可以把这个作为个人图床
+使用方法 获得分享链接,onedrive提取出userid和fileid,google云盘提取出fileid,onedrive url /o/userid/fileid,google云盘 /g/fileid,onedrive默认限制userid,填写自己的userid,或者注释相关代码
 原理 playwright 无头游览器
-nginx 反向代理 server { listen 80; listen [::]:80; server_name 你的域名; location / { proxy_pass https://space域名 ; proxy_ssl_server_name on; proxy_set_header Host space域名 ; } } cloudflare 缓存规则 主机名等于&#34;你的域名&#34; 缓存资格=符合缓存条件 边缘 TTL = 1 年 浏览器 TTL = 1 年">
+nginx 反向代理 server { listen 80; listen [::]:80; server_name 你的域名; location / { proxy_pass https://space域名 ; proxy_ssl_server_name on; proxy_set_header Host space域名 ; } } cloudflare 缓存规则 主机名等于&#34;你的域名&#34; 缓存资格=符合缓存条件 边缘 TTL = 1 年 浏览器 TTL = 1 年
+源码 const express = require(&#39;express&#39;); const axios = require(&#39;axios&#39;); const { chromium } = require(&#39;playwright&#39;); const fs = require(&#39;fs&#39;).promises; const path = require(&#39;path&#39;); const app = express(); const port = 3000; // 定义允许的 user ID 列表 (OneDrive) const ALLOWED_USER_IDS = [&#39;31c90366ccabe857&#39;]; // Replace with your actual list // 公共函数：格式化当前时间 function getFormattedNow() { const now = new Date(); const year = now.getFullYear(); const month = now.getMonth() &#43; 1; const day = now.getDate(); const hour = now.getHours(); const minute = now.getMinutes(); const second = now.getSeconds(); return `${year}年${month}月${day}日${hour}时${minute}分${second}秒`; } // 公共函数：下载图片 (使用 Playwright) async function downloadImageWithPlaywright(url, svgSelector, time, id) { let browser; try { browser = await chromium.launch({ headless: true, args: [&#39;--no-sandbox&#39;, &#39;--disable-setuid-sandbox&#39;], }); const page = await browser.newPage(); await page.goto(url, { waitUntil: &#39;networkidle&#39; }); // await page.waitForTimeout(2000); // 显式等待2秒 await page.click(svgSelector); const download = await page.waitForEvent(&#39;download&#39;); const imageBuffer = await download.createReadStream().then(stream =&gt; { return new Promise((resolve, reject) =&gt; { const chunks = []; stream.on(&#39;data&#39;, chunk =&gt; chunks.push(chunk)); stream.on(&#39;error&#39;, reject); stream.on(&#39;end&#39;, () =&gt; resolve(Buffer.concat(chunks))); }); }); return imageBuffer; } catch (error) { console.error(`${time} error ${id} Error downloading image with Playwright:`, error); return null; } finally { if (browser) { await browser.close(); } } } // 公共函数：保存图片到本地 async function saveImageToLocal(baseDir, filename, imageBuffer, time, id) { const dirPath = path.join(__dirname, baseDir, path.dirname(filename)); // 修改：添加 path.dirname(filename) const filePath = path.join(__dirname, baseDir, filename); // 修改：使用完整的 filename try { try { await fs.access(dirPath); // 检查目录是否存在 } catch (error) { // 目录不存在，创建它 await fs.mkdir(dirPath, { recursive: true }); // recursive: true 可以创建多级目录 } await fs.writeFile(filePath, imageBuffer); } catch (error) { console.error(`${time} error ${id} Error saving image to local file:`, error); } } // OneDrive 路由 app.get(&#39;/o/:userid/:pictureid&#39;, async (req, res) =&gt; { const time = getFormattedNow(); const { userid, pictureid } = req.params; const filePath = path.join(__dirname, &#39;o&#39;, userid, `${pictureid}`); // 检查 user ID 是否在允许的列表中 if (!ALLOWED_USER_IDS.includes(userid)) { console.log(`${time} userid not in ${userid}`); return res.status(404).send(&#39;&#39;); // Or 403 Forbidden } const baseOneDriveUrl = `https://1drv.ms/i/c/${userid}/${pictureid}`; const svgElementSelector = &#39;[aria-label=&#34;Download&#34;]&#39;; try { // 1. 检查本地文件是否存在 try { await fs.access(filePath); // 检查文件是否存在 console.log(`${time} 缓存 OneDrive: ${userid}/${pictureid}`); const imageBuffer = await fs.readFile(filePath); res.writeHead(200, { &#39;Content-Disposition&#39;: &#39;inline&#39; }); res.end(imageBuffer); return; } catch (error) { // 文件不存在，继续从 OneDrive 下载 } // 2. 获取重定向后的 URL async function getRedirectedUrl(url, time, userid, pictureid) { try { const response = await axios.get(url, { maxRedirects: 0, validateStatus: null }); if (response.status === 404) { return &#34;404&#34;; // Indicate that the resource was not found } else if (response.status &gt;= 300 &amp;&amp; response.status &lt; 400 &amp;&amp; response.headers.location) { return response.headers.location; } else { console.error(`${time} error ${userid}/${pictureid} No redirect found. Status:`, response.status); return null; } } catch (error) { console.error(`${time} error ${userid}/${pictureid} Error getting redirected URL:`, error); return null; } } const redirectedUrl = await getRedirectedUrl(baseOneDriveUrl,time,userid,pictureid); if (redirectedUrl == &#34;404&#34;) { console.log(`${time} 404 ${userid}/${pictureid}`); return res.status(404).send(&#34;&#34;); } if (!redirectedUrl) { return res.status(500).send(&#39;&#39;); } // 3. 使用 Playwright 下载图片 const imageBuffer = await downloadImageWithPlaywright(redirectedUrl, svgElementSelector, time, `${userid}/${pictureid}`); if (!imageBuffer) { return res.status(500).send(&#39;&#39;); } // 4. 保存图片到本地 await saveImageToLocal(&#39;o&#39;, path.join(userid, `${pictureid}`), imageBuffer, time, `${userid}/${pictureid}`); // 5. 设置响应头并发送图片 res.writeHead(200, { &#39;Content-Disposition&#39;: &#39;inline&#39; }); console.log(`${time} 未缓存 OneDrive: ${userid}/${pictureid}`); res.end(imageBuffer); } catch (error) { console.error(`${time} error OneDrive: ${userid}/${pictureid}`, error); res.status(500).send(&#39;&#39;); } }); // Google Drive 路由 app.get(&#39;/g/:fileid&#39;, async (req, res) =&gt; { const time = getFormattedNow(); const { fileid } = req.params; const filePath = path.join(__dirname, &#39;g&#39;, `${fileid}`); // 修改了路径 const baseGoogleDriveUrl = `https://drive.google.com/file/d/${fileid}/view?usp=sharing`; const svgElementSelector = &#39;[aria-label=&#34;Download&#34;]&#39;; try { // 1. 检查本地文件是否存在 try { await fs.access(filePath); console.log(`${time} 缓存 Google Drive: ${fileid}`); const imageBuffer = await fs.readFile(filePath); res.writeHead(200, { &#39;Content-Disposition&#39;: &#39;inline&#39; }); res.end(imageBuffer); return; } catch (error) { // 文件不存在，继续从 Google Drive 下载 } // 2. 使用 Playwright 下载图片 const imageBuffer = await downloadImageWithPlaywright(baseGoogleDriveUrl, svgElementSelector, time, fileid); if (!imageBuffer) { return res.status(500).send(&#39;&#39;); } // 3. 保存图片到本地 await saveImageToLocal(&#39;g&#39;, `${fileid}`, imageBuffer, time, fileid); // 4. 设置响应头并发送图片 res.writeHead(200, { &#39;Content-Disposition&#39;: &#39;inline&#39; }); console.log(`${time} 未缓存 Google Drive: ${fileid}`); res.end(imageBuffer); } catch (error) { console.error(`${time} error Google Drive: ${fileid}`, error); res.status(500).send(&#39;&#39;); } }); // 启动服务器 app.listen(port, () =&gt; { console.log(`服务启动 http://localhost:${port}`); }); Dockerfile FROM node RUN mkdir /app WORKDIR /app RUN chown -R node:node /app COPY ./files/package.json /app RUN npm i RUN npx playwright install-deps USER node RUN npx playwright install COPY ./files/app.js /app CMD [&#34;node&#34;,&#34;./app.js&#34;] ">
   <meta property="og:locale" content="zh-cn">
   <meta property="og:type" content="article">
     <meta property="article:section" content="posts">
     <meta property="article:published_time" content="2025-02-25T10:14:24+08:00">
     <meta property="article:modified_time" content="2025-02-25T10:14:24+08:00">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="onedrive huggingface 图床">
+<meta name="twitter:title" content="onedrive google 图床">
 <meta name="twitter:description" content="起因
-onedrive本来就有&quot;嵌入&quot;功能,把网盘的文件提取出外链,但是我发现得到的链接有个302跳转,并且跳转后不是图片,而是包含图片的html,好像不能直接做图床,于是我用playwright无头游览器,提取出图片,鉴于playwright安装要大约1G,我部署到抱脸上.
+onedrive 和 google 云盘的分享链接都可以设置任何人可查看,且不需要登录,于是可以把这个作为个人图床
 使用方法
-通过onedrive&quot;嵌入&quot;功能获得url,例如https://1drv.ms/i/c/31c90366ccabe857/IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE?width=1920&amp;height=1080,我们提取出userid 31c90366ccabe857和fileid IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE ,复制我的空间https://huggingface.co/spaces/hellometeor/img修改files/app.js代码的ALLOWED_USER_IDS,列表里面填上你的userid ,请求路径 /userid/fileid
+获得分享链接,onedrive提取出userid和fileid,google云盘提取出fileid,onedrive url /o/userid/fileid,google云盘 /g/fileid,onedrive默认限制userid,填写自己的userid,或者注释相关代码
 原理
 playwright 无头游览器
 nginx 反向代理
@@ -113,7 +329,222 @@ cloudflare 缓存规则
 主机名等于&quot;你的域名&quot;
 缓存资格=符合缓存条件
 边缘 TTL = 1 年
-浏览器 TTL = 1 年">
+浏览器 TTL = 1 年
+源码
+const express = require(&#39;express&#39;);
+const axios = require(&#39;axios&#39;);
+const { chromium } = require(&#39;playwright&#39;);
+const fs = require(&#39;fs&#39;).promises;
+const path = require(&#39;path&#39;);
+
+const app = express();
+const port = 3000;
+
+// 定义允许的 user ID 列表 (OneDrive)
+const ALLOWED_USER_IDS = [&#39;31c90366ccabe857&#39;]; // Replace with your actual list
+
+// 公共函数：格式化当前时间
+function getFormattedNow() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() &#43; 1;
+    const day = now.getDate();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    const second = now.getSeconds();
+    return `${year}年${month}月${day}日${hour}时${minute}分${second}秒`;
+}
+
+// 公共函数：下载图片 (使用 Playwright)
+async function downloadImageWithPlaywright(url, svgSelector, time, id) {
+    let browser;
+    try {
+        browser = await chromium.launch({
+            headless: true,
+            args: [&#39;--no-sandbox&#39;, &#39;--disable-setuid-sandbox&#39;],
+        });
+        const page = await browser.newPage();
+        await page.goto(url, { waitUntil: &#39;networkidle&#39; });
+        // await page.waitForTimeout(2000); // 显式等待2秒
+        await page.click(svgSelector);
+        const download = await page.waitForEvent(&#39;download&#39;);
+        const imageBuffer = await download.createReadStream().then(stream =&gt; {
+            return new Promise((resolve, reject) =&gt; {
+                const chunks = [];
+                stream.on(&#39;data&#39;, chunk =&gt; chunks.push(chunk));
+                stream.on(&#39;error&#39;, reject);
+                stream.on(&#39;end&#39;, () =&gt; resolve(Buffer.concat(chunks)));
+            });
+        });
+        return imageBuffer;
+    } catch (error) {
+        console.error(`${time} error ${id} Error downloading image with Playwright:`, error);
+        return null;
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
+    }
+}
+
+// 公共函数：保存图片到本地
+async function saveImageToLocal(baseDir, filename, imageBuffer, time, id) {
+    const dirPath = path.join(__dirname, baseDir, path.dirname(filename)); // 修改：添加 path.dirname(filename)
+    const filePath = path.join(__dirname, baseDir, filename); // 修改：使用完整的 filename
+
+    try {
+        try {
+            await fs.access(dirPath); // 检查目录是否存在
+        } catch (error) {
+            // 目录不存在，创建它
+            await fs.mkdir(dirPath, { recursive: true }); // recursive: true 可以创建多级目录
+        }
+        await fs.writeFile(filePath, imageBuffer);
+    } catch (error) {
+        console.error(`${time} error ${id} Error saving image to local file:`, error);
+    }
+}
+
+
+// OneDrive 路由
+app.get(&#39;/o/:userid/:pictureid&#39;, async (req, res) =&gt; {
+    const time = getFormattedNow();
+    const { userid, pictureid } = req.params;
+    const filePath = path.join(__dirname, &#39;o&#39;, userid, `${pictureid}`);
+
+    // 检查 user ID 是否在允许的列表中
+    if (!ALLOWED_USER_IDS.includes(userid)) {
+        console.log(`${time} userid not in ${userid}`);
+        return res.status(404).send(&#39;&#39;); // Or 403 Forbidden
+    }
+
+    const baseOneDriveUrl = `https://1drv.ms/i/c/${userid}/${pictureid}`;
+    const svgElementSelector = &#39;[aria-label=&#34;Download&#34;]&#39;;
+
+    try {
+        // 1. 检查本地文件是否存在
+        try {
+            await fs.access(filePath); // 检查文件是否存在
+            console.log(`${time} 缓存 OneDrive: ${userid}/${pictureid}`);
+            const imageBuffer = await fs.readFile(filePath);
+            res.writeHead(200, { &#39;Content-Disposition&#39;: &#39;inline&#39; });
+            res.end(imageBuffer);
+            return;
+        } catch (error) {
+            // 文件不存在，继续从 OneDrive 下载
+        }
+
+        // 2. 获取重定向后的 URL
+        async function getRedirectedUrl(url, time, userid, pictureid) {
+            try {
+                const response = await axios.get(url, {
+                    maxRedirects: 0,
+                    validateStatus: null
+                });
+
+                if (response.status === 404) {
+                    return &#34;404&#34;; // Indicate that the resource was not found
+                } else if (response.status &gt;= 300 &amp;&amp; response.status &lt; 400 &amp;&amp; response.headers.location) {
+                    return response.headers.location;
+                } else {
+                    console.error(`${time} error ${userid}/${pictureid} No redirect found. Status:`, response.status);
+                    return null;
+                }
+            } catch (error) {
+                console.error(`${time} error ${userid}/${pictureid} Error getting redirected URL:`, error);
+                return null;
+            }
+        }
+
+        const redirectedUrl = await getRedirectedUrl(baseOneDriveUrl,time,userid,pictureid);
+        if (redirectedUrl == &#34;404&#34;) {
+            console.log(`${time} 404 ${userid}/${pictureid}`);
+            return res.status(404).send(&#34;&#34;);
+        }
+        if (!redirectedUrl) {
+            return res.status(500).send(&#39;&#39;);
+        }
+
+        // 3. 使用 Playwright 下载图片
+        const imageBuffer = await downloadImageWithPlaywright(redirectedUrl, svgElementSelector, time, `${userid}/${pictureid}`);
+        if (!imageBuffer) {
+            return res.status(500).send(&#39;&#39;);
+        }
+
+        // 4. 保存图片到本地
+        await saveImageToLocal(&#39;o&#39;, path.join(userid, `${pictureid}`), imageBuffer, time, `${userid}/${pictureid}`);
+
+        // 5. 设置响应头并发送图片
+        res.writeHead(200, { &#39;Content-Disposition&#39;: &#39;inline&#39; });
+        console.log(`${time} 未缓存 OneDrive: ${userid}/${pictureid}`);
+        res.end(imageBuffer);
+    } catch (error) {
+        console.error(`${time} error OneDrive: ${userid}/${pictureid}`, error);
+        res.status(500).send(&#39;&#39;);
+    }
+});
+
+
+// Google Drive 路由
+app.get(&#39;/g/:fileid&#39;, async (req, res) =&gt; {
+    const time = getFormattedNow();
+    const { fileid } = req.params;
+    const filePath = path.join(__dirname, &#39;g&#39;, `${fileid}`); // 修改了路径
+
+    const baseGoogleDriveUrl = `https://drive.google.com/file/d/${fileid}/view?usp=sharing`;
+    const svgElementSelector = &#39;[aria-label=&#34;Download&#34;]&#39;;
+
+    try {
+        // 1. 检查本地文件是否存在
+        try {
+            await fs.access(filePath);
+            console.log(`${time} 缓存 Google Drive: ${fileid}`);
+            const imageBuffer = await fs.readFile(filePath);
+            res.writeHead(200, { &#39;Content-Disposition&#39;: &#39;inline&#39; });
+            res.end(imageBuffer);
+            return;
+        } catch (error) {
+            // 文件不存在，继续从 Google Drive 下载
+        }
+
+        // 2. 使用 Playwright 下载图片
+        const imageBuffer = await downloadImageWithPlaywright(baseGoogleDriveUrl, svgElementSelector, time, fileid);
+        if (!imageBuffer) {
+            return res.status(500).send(&#39;&#39;);
+        }
+
+        // 3. 保存图片到本地
+        await saveImageToLocal(&#39;g&#39;, `${fileid}`, imageBuffer, time, fileid);
+
+        // 4. 设置响应头并发送图片
+        res.writeHead(200, { &#39;Content-Disposition&#39;: &#39;inline&#39; });
+        console.log(`${time} 未缓存 Google Drive: ${fileid}`);
+        res.end(imageBuffer);
+
+    } catch (error) {
+        console.error(`${time} error Google Drive: ${fileid}`, error);
+        res.status(500).send(&#39;&#39;);
+    }
+});
+
+
+// 启动服务器
+app.listen(port, () =&gt; {
+    console.log(`服务启动 http://localhost:${port}`);
+});
+Dockerfile
+FROM node
+RUN mkdir /app
+WORKDIR /app
+RUN chown -R node:node /app
+COPY ./files/package.json /app
+RUN npm i
+RUN npx playwright install-deps
+USER node
+RUN npx playwright install
+COPY ./files/app.js /app
+CMD [&#34;node&#34;,&#34;./app.js&#34;]
+">
 
 
 <script type="application/ld+json">
@@ -130,7 +561,7 @@ cloudflare 缓存规则
     {
       "@type": "ListItem",
       "position":  1 ,
-      "name": "onedrive huggingface 图床",
+      "name": "onedrive google 图床",
       "item": "/posts/2/"
     }
   ]
@@ -140,14 +571,14 @@ cloudflare 缓存规则
 {
   "@context": "https://schema.org",
   "@type": "BlogPosting",
-  "headline": "onedrive huggingface 图床",
-  "name": "onedrive huggingface 图床",
-  "description": "起因 onedrive本来就有\u0026quot;嵌入\u0026quot;功能,把网盘的文件提取出外链,但是我发现得到的链接有个302跳转,并且跳转后不是图片,而是包含图片的html,好像不能直接做图床,于是我用playwright无头游览器,提取出图片,鉴于playwright安装要大约1G,我部署到抱脸上.\n使用方法 通过onedrive\u0026quot;嵌入\u0026quot;功能获得url,例如https://1drv.ms/i/c/31c90366ccabe857/IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE?width=1920\u0026amp;height=1080,我们提取出userid 31c90366ccabe857和fileid IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE ,复制我的空间https://huggingface.co/spaces/hellometeor/img修改files/app.js代码的ALLOWED_USER_IDS,列表里面填上你的userid ,请求路径 /userid/fileid\n原理 playwright 无头游览器\nnginx 反向代理 server { listen 80; listen [::]:80; server_name 你的域名; location / { proxy_pass https://space域名 ; proxy_ssl_server_name on; proxy_set_header Host space域名 ; } } cloudflare 缓存规则 主机名等于\u0026quot;你的域名\u0026quot; 缓存资格=符合缓存条件 边缘 TTL = 1 年 浏览器 TTL = 1 年\n",
+  "headline": "onedrive google 图床",
+  "name": "onedrive google 图床",
+  "description": "起因 onedrive 和 google 云盘的分享链接都可以设置任何人可查看,且不需要登录,于是可以把这个作为个人图床\n使用方法 获得分享链接,onedrive提取出userid和fileid,google云盘提取出fileid,onedrive url /o/userid/fileid,google云盘 /g/fileid,onedrive默认限制userid,填写自己的userid,或者注释相关代码\n原理 playwright 无头游览器\nnginx 反向代理 server { listen 80; listen [::]:80; server_name 你的域名; location / { proxy_pass https://space域名 ; proxy_ssl_server_name on; proxy_set_header Host space域名 ; } } cloudflare 缓存规则 主机名等于\u0026quot;你的域名\u0026quot; 缓存资格=符合缓存条件 边缘 TTL = 1 年 浏览器 TTL = 1 年\n源码 const express = require(\u0026#39;express\u0026#39;); const axios = require(\u0026#39;axios\u0026#39;); const { chromium } = require(\u0026#39;playwright\u0026#39;); const fs = require(\u0026#39;fs\u0026#39;).promises; const path = require(\u0026#39;path\u0026#39;); const app = express(); const port = 3000; // 定义允许的 user ID 列表 (OneDrive) const ALLOWED_USER_IDS = [\u0026#39;31c90366ccabe857\u0026#39;]; // Replace with your actual list // 公共函数：格式化当前时间 function getFormattedNow() { const now = new Date(); const year = now.getFullYear(); const month = now.getMonth() + 1; const day = now.getDate(); const hour = now.getHours(); const minute = now.getMinutes(); const second = now.getSeconds(); return `${year}年${month}月${day}日${hour}时${minute}分${second}秒`; } // 公共函数：下载图片 (使用 Playwright) async function downloadImageWithPlaywright(url, svgSelector, time, id) { let browser; try { browser = await chromium.launch({ headless: true, args: [\u0026#39;--no-sandbox\u0026#39;, \u0026#39;--disable-setuid-sandbox\u0026#39;], }); const page = await browser.newPage(); await page.goto(url, { waitUntil: \u0026#39;networkidle\u0026#39; }); // await page.waitForTimeout(2000); // 显式等待2秒 await page.click(svgSelector); const download = await page.waitForEvent(\u0026#39;download\u0026#39;); const imageBuffer = await download.createReadStream().then(stream =\u0026gt; { return new Promise((resolve, reject) =\u0026gt; { const chunks = []; stream.on(\u0026#39;data\u0026#39;, chunk =\u0026gt; chunks.push(chunk)); stream.on(\u0026#39;error\u0026#39;, reject); stream.on(\u0026#39;end\u0026#39;, () =\u0026gt; resolve(Buffer.concat(chunks))); }); }); return imageBuffer; } catch (error) { console.error(`${time} error ${id} Error downloading image with Playwright:`, error); return null; } finally { if (browser) { await browser.close(); } } } // 公共函数：保存图片到本地 async function saveImageToLocal(baseDir, filename, imageBuffer, time, id) { const dirPath = path.join(__dirname, baseDir, path.dirname(filename)); // 修改：添加 path.dirname(filename) const filePath = path.join(__dirname, baseDir, filename); // 修改：使用完整的 filename try { try { await fs.access(dirPath); // 检查目录是否存在 } catch (error) { // 目录不存在，创建它 await fs.mkdir(dirPath, { recursive: true }); // recursive: true 可以创建多级目录 } await fs.writeFile(filePath, imageBuffer); } catch (error) { console.error(`${time} error ${id} Error saving image to local file:`, error); } } // OneDrive 路由 app.get(\u0026#39;/o/:userid/:pictureid\u0026#39;, async (req, res) =\u0026gt; { const time = getFormattedNow(); const { userid, pictureid } = req.params; const filePath = path.join(__dirname, \u0026#39;o\u0026#39;, userid, `${pictureid}`); // 检查 user ID 是否在允许的列表中 if (!ALLOWED_USER_IDS.includes(userid)) { console.log(`${time} userid not in ${userid}`); return res.status(404).send(\u0026#39;\u0026#39;); // Or 403 Forbidden } const baseOneDriveUrl = `https://1drv.ms/i/c/${userid}/${pictureid}`; const svgElementSelector = \u0026#39;[aria-label=\u0026#34;Download\u0026#34;]\u0026#39;; try { // 1. 检查本地文件是否存在 try { await fs.access(filePath); // 检查文件是否存在 console.log(`${time} 缓存 OneDrive: ${userid}/${pictureid}`); const imageBuffer = await fs.readFile(filePath); res.writeHead(200, { \u0026#39;Content-Disposition\u0026#39;: \u0026#39;inline\u0026#39; }); res.end(imageBuffer); return; } catch (error) { // 文件不存在，继续从 OneDrive 下载 } // 2. 获取重定向后的 URL async function getRedirectedUrl(url, time, userid, pictureid) { try { const response = await axios.get(url, { maxRedirects: 0, validateStatus: null }); if (response.status === 404) { return \u0026#34;404\u0026#34;; // Indicate that the resource was not found } else if (response.status \u0026gt;= 300 \u0026amp;\u0026amp; response.status \u0026lt; 400 \u0026amp;\u0026amp; response.headers.location) { return response.headers.location; } else { console.error(`${time} error ${userid}/${pictureid} No redirect found. Status:`, response.status); return null; } } catch (error) { console.error(`${time} error ${userid}/${pictureid} Error getting redirected URL:`, error); return null; } } const redirectedUrl = await getRedirectedUrl(baseOneDriveUrl,time,userid,pictureid); if (redirectedUrl == \u0026#34;404\u0026#34;) { console.log(`${time} 404 ${userid}/${pictureid}`); return res.status(404).send(\u0026#34;\u0026#34;); } if (!redirectedUrl) { return res.status(500).send(\u0026#39;\u0026#39;); } // 3. 使用 Playwright 下载图片 const imageBuffer = await downloadImageWithPlaywright(redirectedUrl, svgElementSelector, time, `${userid}/${pictureid}`); if (!imageBuffer) { return res.status(500).send(\u0026#39;\u0026#39;); } // 4. 保存图片到本地 await saveImageToLocal(\u0026#39;o\u0026#39;, path.join(userid, `${pictureid}`), imageBuffer, time, `${userid}/${pictureid}`); // 5. 设置响应头并发送图片 res.writeHead(200, { \u0026#39;Content-Disposition\u0026#39;: \u0026#39;inline\u0026#39; }); console.log(`${time} 未缓存 OneDrive: ${userid}/${pictureid}`); res.end(imageBuffer); } catch (error) { console.error(`${time} error OneDrive: ${userid}/${pictureid}`, error); res.status(500).send(\u0026#39;\u0026#39;); } }); // Google Drive 路由 app.get(\u0026#39;/g/:fileid\u0026#39;, async (req, res) =\u0026gt; { const time = getFormattedNow(); const { fileid } = req.params; const filePath = path.join(__dirname, \u0026#39;g\u0026#39;, `${fileid}`); // 修改了路径 const baseGoogleDriveUrl = `https://drive.google.com/file/d/${fileid}/view?usp=sharing`; const svgElementSelector = \u0026#39;[aria-label=\u0026#34;Download\u0026#34;]\u0026#39;; try { // 1. 检查本地文件是否存在 try { await fs.access(filePath); console.log(`${time} 缓存 Google Drive: ${fileid}`); const imageBuffer = await fs.readFile(filePath); res.writeHead(200, { \u0026#39;Content-Disposition\u0026#39;: \u0026#39;inline\u0026#39; }); res.end(imageBuffer); return; } catch (error) { // 文件不存在，继续从 Google Drive 下载 } // 2. 使用 Playwright 下载图片 const imageBuffer = await downloadImageWithPlaywright(baseGoogleDriveUrl, svgElementSelector, time, fileid); if (!imageBuffer) { return res.status(500).send(\u0026#39;\u0026#39;); } // 3. 保存图片到本地 await saveImageToLocal(\u0026#39;g\u0026#39;, `${fileid}`, imageBuffer, time, fileid); // 4. 设置响应头并发送图片 res.writeHead(200, { \u0026#39;Content-Disposition\u0026#39;: \u0026#39;inline\u0026#39; }); console.log(`${time} 未缓存 Google Drive: ${fileid}`); res.end(imageBuffer); } catch (error) { console.error(`${time} error Google Drive: ${fileid}`, error); res.status(500).send(\u0026#39;\u0026#39;); } }); // 启动服务器 app.listen(port, () =\u0026gt; { console.log(`服务启动 http://localhost:${port}`); }); Dockerfile FROM node RUN mkdir /app WORKDIR /app RUN chown -R node:node /app COPY ./files/package.json /app RUN npm i RUN npx playwright install-deps USER node RUN npx playwright install COPY ./files/app.js /app CMD [\u0026#34;node\u0026#34;,\u0026#34;./app.js\u0026#34;] ",
   "keywords": [
     
   ],
-  "articleBody": "起因 onedrive本来就有\"嵌入\"功能,把网盘的文件提取出外链,但是我发现得到的链接有个302跳转,并且跳转后不是图片,而是包含图片的html,好像不能直接做图床,于是我用playwright无头游览器,提取出图片,鉴于playwright安装要大约1G,我部署到抱脸上.\n使用方法 通过onedrive\"嵌入\"功能获得url,例如https://1drv.ms/i/c/31c90366ccabe857/IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE?width=1920\u0026height=1080,我们提取出userid 31c90366ccabe857和fileid IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE ,复制我的空间https://huggingface.co/spaces/hellometeor/img修改files/app.js代码的ALLOWED_USER_IDS,列表里面填上你的userid ,请求路径 /userid/fileid\n原理 playwright 无头游览器\nnginx 反向代理 server { listen 80; listen [::]:80; server_name 你的域名; location / { proxy_pass https://space域名 ; proxy_ssl_server_name on; proxy_set_header Host space域名 ; } } cloudflare 缓存规则 主机名等于\"你的域名\" 缓存资格=符合缓存条件 边缘 TTL = 1 年 浏览器 TTL = 1 年\n",
-  "wordCount" : "50",
+  "articleBody": "起因 onedrive 和 google 云盘的分享链接都可以设置任何人可查看,且不需要登录,于是可以把这个作为个人图床\n使用方法 获得分享链接,onedrive提取出userid和fileid,google云盘提取出fileid,onedrive url /o/userid/fileid,google云盘 /g/fileid,onedrive默认限制userid,填写自己的userid,或者注释相关代码\n原理 playwright 无头游览器\nnginx 反向代理 server { listen 80; listen [::]:80; server_name 你的域名; location / { proxy_pass https://space域名 ; proxy_ssl_server_name on; proxy_set_header Host space域名 ; } } cloudflare 缓存规则 主机名等于\"你的域名\" 缓存资格=符合缓存条件 边缘 TTL = 1 年 浏览器 TTL = 1 年\n源码 const express = require('express'); const axios = require('axios'); const { chromium } = require('playwright'); const fs = require('fs').promises; const path = require('path'); const app = express(); const port = 3000; // 定义允许的 user ID 列表 (OneDrive) const ALLOWED_USER_IDS = ['31c90366ccabe857']; // Replace with your actual list // 公共函数：格式化当前时间 function getFormattedNow() { const now = new Date(); const year = now.getFullYear(); const month = now.getMonth() + 1; const day = now.getDate(); const hour = now.getHours(); const minute = now.getMinutes(); const second = now.getSeconds(); return `${year}年${month}月${day}日${hour}时${minute}分${second}秒`; } // 公共函数：下载图片 (使用 Playwright) async function downloadImageWithPlaywright(url, svgSelector, time, id) { let browser; try { browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'], }); const page = await browser.newPage(); await page.goto(url, { waitUntil: 'networkidle' }); // await page.waitForTimeout(2000); // 显式等待2秒 await page.click(svgSelector); const download = await page.waitForEvent('download'); const imageBuffer = await download.createReadStream().then(stream =\u003e { return new Promise((resolve, reject) =\u003e { const chunks = []; stream.on('data', chunk =\u003e chunks.push(chunk)); stream.on('error', reject); stream.on('end', () =\u003e resolve(Buffer.concat(chunks))); }); }); return imageBuffer; } catch (error) { console.error(`${time} error ${id} Error downloading image with Playwright:`, error); return null; } finally { if (browser) { await browser.close(); } } } // 公共函数：保存图片到本地 async function saveImageToLocal(baseDir, filename, imageBuffer, time, id) { const dirPath = path.join(__dirname, baseDir, path.dirname(filename)); // 修改：添加 path.dirname(filename) const filePath = path.join(__dirname, baseDir, filename); // 修改：使用完整的 filename try { try { await fs.access(dirPath); // 检查目录是否存在 } catch (error) { // 目录不存在，创建它 await fs.mkdir(dirPath, { recursive: true }); // recursive: true 可以创建多级目录 } await fs.writeFile(filePath, imageBuffer); } catch (error) { console.error(`${time} error ${id} Error saving image to local file:`, error); } } // OneDrive 路由 app.get('/o/:userid/:pictureid', async (req, res) =\u003e { const time = getFormattedNow(); const { userid, pictureid } = req.params; const filePath = path.join(__dirname, 'o', userid, `${pictureid}`); // 检查 user ID 是否在允许的列表中 if (!ALLOWED_USER_IDS.includes(userid)) { console.log(`${time} userid not in ${userid}`); return res.status(404).send(''); // Or 403 Forbidden } const baseOneDriveUrl = `https://1drv.ms/i/c/${userid}/${pictureid}`; const svgElementSelector = '[aria-label=\"Download\"]'; try { // 1. 检查本地文件是否存在 try { await fs.access(filePath); // 检查文件是否存在 console.log(`${time} 缓存 OneDrive: ${userid}/${pictureid}`); const imageBuffer = await fs.readFile(filePath); res.writeHead(200, { 'Content-Disposition': 'inline' }); res.end(imageBuffer); return; } catch (error) { // 文件不存在，继续从 OneDrive 下载 } // 2. 获取重定向后的 URL async function getRedirectedUrl(url, time, userid, pictureid) { try { const response = await axios.get(url, { maxRedirects: 0, validateStatus: null }); if (response.status === 404) { return \"404\"; // Indicate that the resource was not found } else if (response.status \u003e= 300 \u0026\u0026 response.status \u003c 400 \u0026\u0026 response.headers.location) { return response.headers.location; } else { console.error(`${time} error ${userid}/${pictureid} No redirect found. Status:`, response.status); return null; } } catch (error) { console.error(`${time} error ${userid}/${pictureid} Error getting redirected URL:`, error); return null; } } const redirectedUrl = await getRedirectedUrl(baseOneDriveUrl,time,userid,pictureid); if (redirectedUrl == \"404\") { console.log(`${time} 404 ${userid}/${pictureid}`); return res.status(404).send(\"\"); } if (!redirectedUrl) { return res.status(500).send(''); } // 3. 使用 Playwright 下载图片 const imageBuffer = await downloadImageWithPlaywright(redirectedUrl, svgElementSelector, time, `${userid}/${pictureid}`); if (!imageBuffer) { return res.status(500).send(''); } // 4. 保存图片到本地 await saveImageToLocal('o', path.join(userid, `${pictureid}`), imageBuffer, time, `${userid}/${pictureid}`); // 5. 设置响应头并发送图片 res.writeHead(200, { 'Content-Disposition': 'inline' }); console.log(`${time} 未缓存 OneDrive: ${userid}/${pictureid}`); res.end(imageBuffer); } catch (error) { console.error(`${time} error OneDrive: ${userid}/${pictureid}`, error); res.status(500).send(''); } }); // Google Drive 路由 app.get('/g/:fileid', async (req, res) =\u003e { const time = getFormattedNow(); const { fileid } = req.params; const filePath = path.join(__dirname, 'g', `${fileid}`); // 修改了路径 const baseGoogleDriveUrl = `https://drive.google.com/file/d/${fileid}/view?usp=sharing`; const svgElementSelector = '[aria-label=\"Download\"]'; try { // 1. 检查本地文件是否存在 try { await fs.access(filePath); console.log(`${time} 缓存 Google Drive: ${fileid}`); const imageBuffer = await fs.readFile(filePath); res.writeHead(200, { 'Content-Disposition': 'inline' }); res.end(imageBuffer); return; } catch (error) { // 文件不存在，继续从 Google Drive 下载 } // 2. 使用 Playwright 下载图片 const imageBuffer = await downloadImageWithPlaywright(baseGoogleDriveUrl, svgElementSelector, time, fileid); if (!imageBuffer) { return res.status(500).send(''); } // 3. 保存图片到本地 await saveImageToLocal('g', `${fileid}`, imageBuffer, time, fileid); // 4. 设置响应头并发送图片 res.writeHead(200, { 'Content-Disposition': 'inline' }); console.log(`${time} 未缓存 Google Drive: ${fileid}`); res.end(imageBuffer); } catch (error) { console.error(`${time} error Google Drive: ${fileid}`, error); res.status(500).send(''); } }); // 启动服务器 app.listen(port, () =\u003e { console.log(`服务启动 http://localhost:${port}`); }); Dockerfile FROM node RUN mkdir /app WORKDIR /app RUN chown -R node:node /app COPY ./files/package.json /app RUN npm i RUN npx playwright install-deps USER node RUN npx playwright install COPY ./files/app.js /app CMD [\"node\",\"./app.js\"] ",
+  "wordCount" : "735",
   "inLanguage": "en",
   "datePublished": "2025-02-25T10:14:24+08:00",
   "dateModified": "2025-02-25T10:14:24+08:00",
@@ -220,16 +651,16 @@ cloudflare 缓存规则
   <header class="post-header">
     
     <h1 class="post-title entry-hint-parent">
-      onedrive huggingface 图床
+      onedrive google 图床
     </h1>
     <div class="post-meta"><span title='2025-02-25 10:14:24 +0800 CST'>February 25, 2025</span>&nbsp;·&nbsp;0031400
 
 </div>
   </header> 
   <div class="post-content"><h3 id="起因">起因<a hidden class="anchor" aria-hidden="true" href="#起因">#</a></h3>
-<p>onedrive本来就有&quot;嵌入&quot;功能,把网盘的文件提取出外链,但是我发现得到的链接有个302跳转,并且跳转后不是图片,而是包含图片的html,好像不能直接做图床,于是我用playwright无头游览器,提取出图片,鉴于playwright安装要大约1G,我部署到抱脸上.</p>
+<p>onedrive 和 google 云盘的分享链接都可以设置任何人可查看,且不需要登录,于是可以把这个作为个人图床</p>
 <h3 id="使用方法">使用方法<a hidden class="anchor" aria-hidden="true" href="#使用方法">#</a></h3>
-<p>通过onedrive&quot;嵌入&quot;功能获得url,例如<a href="https://1drv.ms/i/c/31c90366ccabe857/IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE?width=1920&amp;height=1080">https://1drv.ms/i/c/31c90366ccabe857/IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE?width=1920&amp;height=1080</a>,我们提取出userid 31c90366ccabe857和fileid IQIM4kIQkTxNT7uZ56m1vpYdAUOF_YexWwk9MrJxF3JTEtE ,复制我的空间<a href="https://huggingface.co/spaces/hellometeor/img">https://huggingface.co/spaces/hellometeor/img</a>修改files/app.js代码的ALLOWED_USER_IDS,列表里面填上你的userid ,请求路径 /userid/fileid</p>
+<p>获得分享链接,onedrive提取出userid和fileid,google云盘提取出fileid,onedrive url /o/userid/fileid,google云盘 /g/fileid,onedrive默认限制userid,填写自己的userid,或者注释相关代码</p>
 <h3 id="原理">原理<a hidden class="anchor" aria-hidden="true" href="#原理">#</a></h3>
 <p>playwright 无头游览器</p>
 <h3 id="nginx-反向代理">nginx 反向代理<a hidden class="anchor" aria-hidden="true" href="#nginx-反向代理">#</a></h3>
@@ -249,7 +680,221 @@ cloudflare 缓存规则
 缓存资格=符合缓存条件
 边缘 TTL = 1 年
 浏览器 TTL = 1 年</p>
-
+<h3 id="源码">源码<a hidden class="anchor" aria-hidden="true" href="#源码">#</a></h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-js" data-lang="js"><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">express</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">require</span>(<span style="color:#e6db74">&#39;express&#39;</span>);
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">axios</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">require</span>(<span style="color:#e6db74">&#39;axios&#39;</span>);
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">const</span> { <span style="color:#a6e22e">chromium</span> } <span style="color:#f92672">=</span> <span style="color:#a6e22e">require</span>(<span style="color:#e6db74">&#39;playwright&#39;</span>);
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">fs</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">require</span>(<span style="color:#e6db74">&#39;fs&#39;</span>).<span style="color:#a6e22e">promises</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">path</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">require</span>(<span style="color:#e6db74">&#39;path&#39;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">app</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">express</span>();
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">port</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">3000</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// 定义允许的 user ID 列表 (OneDrive)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">const</span> <span style="color:#a6e22e">ALLOWED_USER_IDS</span> <span style="color:#f92672">=</span> [<span style="color:#e6db74">&#39;31c90366ccabe857&#39;</span>]; <span style="color:#75715e">// Replace with your actual list
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// 公共函数：格式化当前时间
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">function</span> <span style="color:#a6e22e">getFormattedNow</span>() {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">now</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> Date();
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">year</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">now</span>.<span style="color:#a6e22e">getFullYear</span>();
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">month</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">now</span>.<span style="color:#a6e22e">getMonth</span>() <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">day</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">now</span>.<span style="color:#a6e22e">getDate</span>();
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">hour</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">now</span>.<span style="color:#a6e22e">getHours</span>();
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">minute</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">now</span>.<span style="color:#a6e22e">getMinutes</span>();
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">second</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">now</span>.<span style="color:#a6e22e">getSeconds</span>();
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">year</span><span style="color:#e6db74">}</span><span style="color:#e6db74">年</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">month</span><span style="color:#e6db74">}</span><span style="color:#e6db74">月</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">day</span><span style="color:#e6db74">}</span><span style="color:#e6db74">日</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">hour</span><span style="color:#e6db74">}</span><span style="color:#e6db74">时</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">minute</span><span style="color:#e6db74">}</span><span style="color:#e6db74">分</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">second</span><span style="color:#e6db74">}</span><span style="color:#e6db74">秒`</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// 公共函数：下载图片 (使用 Playwright)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">async</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">downloadImageWithPlaywright</span>(<span style="color:#a6e22e">url</span>, <span style="color:#a6e22e">svgSelector</span>, <span style="color:#a6e22e">time</span>, <span style="color:#a6e22e">id</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> <span style="color:#a6e22e">browser</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">browser</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">chromium</span>.<span style="color:#a6e22e">launch</span>({
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">headless</span><span style="color:#f92672">:</span> <span style="color:#66d9ef">true</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">args</span><span style="color:#f92672">:</span> [<span style="color:#e6db74">&#39;--no-sandbox&#39;</span>, <span style="color:#e6db74">&#39;--disable-setuid-sandbox&#39;</span>],
+</span></span><span style="display:flex;"><span>        });
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">page</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">browser</span>.<span style="color:#a6e22e">newPage</span>();
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">page</span>.<span style="color:#66d9ef">goto</span>(<span style="color:#a6e22e">url</span>, { <span style="color:#a6e22e">waitUntil</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#39;networkidle&#39;</span> });
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// await page.waitForTimeout(2000); // 显式等待2秒
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">page</span>.<span style="color:#a6e22e">click</span>(<span style="color:#a6e22e">svgSelector</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">download</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">page</span>.<span style="color:#a6e22e">waitForEvent</span>(<span style="color:#e6db74">&#39;download&#39;</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">imageBuffer</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">download</span>.<span style="color:#a6e22e">createReadStream</span>().<span style="color:#a6e22e">then</span>(<span style="color:#a6e22e">stream</span> =&gt; {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">new</span> Promise((<span style="color:#a6e22e">resolve</span>, <span style="color:#a6e22e">reject</span>) =&gt; {
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">chunks</span> <span style="color:#f92672">=</span> [];
+</span></span><span style="display:flex;"><span>                <span style="color:#a6e22e">stream</span>.<span style="color:#a6e22e">on</span>(<span style="color:#e6db74">&#39;data&#39;</span>, <span style="color:#a6e22e">chunk</span> =&gt; <span style="color:#a6e22e">chunks</span>.<span style="color:#a6e22e">push</span>(<span style="color:#a6e22e">chunk</span>));
+</span></span><span style="display:flex;"><span>                <span style="color:#a6e22e">stream</span>.<span style="color:#a6e22e">on</span>(<span style="color:#e6db74">&#39;error&#39;</span>, <span style="color:#a6e22e">reject</span>);
+</span></span><span style="display:flex;"><span>                <span style="color:#a6e22e">stream</span>.<span style="color:#a6e22e">on</span>(<span style="color:#e6db74">&#39;end&#39;</span>, () =&gt; <span style="color:#a6e22e">resolve</span>(<span style="color:#a6e22e">Buffer</span>.<span style="color:#a6e22e">concat</span>(<span style="color:#a6e22e">chunks</span>)));
+</span></span><span style="display:flex;"><span>            });
+</span></span><span style="display:flex;"><span>        });
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">imageBuffer</span>;
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">catch</span> (<span style="color:#a6e22e">error</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">console</span>.<span style="color:#a6e22e">error</span>(<span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">time</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> error </span><span style="color:#e6db74">${</span><span style="color:#a6e22e">id</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> Error downloading image with Playwright:`</span>, <span style="color:#a6e22e">error</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">null</span>;
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">finally</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">browser</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">browser</span>.<span style="color:#a6e22e">close</span>();
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// 公共函数：保存图片到本地
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">async</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">saveImageToLocal</span>(<span style="color:#a6e22e">baseDir</span>, <span style="color:#a6e22e">filename</span>, <span style="color:#a6e22e">imageBuffer</span>, <span style="color:#a6e22e">time</span>, <span style="color:#a6e22e">id</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">dirPath</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">path</span>.<span style="color:#a6e22e">join</span>(<span style="color:#a6e22e">__dirname</span>, <span style="color:#a6e22e">baseDir</span>, <span style="color:#a6e22e">path</span>.<span style="color:#a6e22e">dirname</span>(<span style="color:#a6e22e">filename</span>)); <span style="color:#75715e">// 修改：添加 path.dirname(filename)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">filePath</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">path</span>.<span style="color:#a6e22e">join</span>(<span style="color:#a6e22e">__dirname</span>, <span style="color:#a6e22e">baseDir</span>, <span style="color:#a6e22e">filename</span>); <span style="color:#75715e">// 修改：使用完整的 filename
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">fs</span>.<span style="color:#a6e22e">access</span>(<span style="color:#a6e22e">dirPath</span>); <span style="color:#75715e">// 检查目录是否存在
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        } <span style="color:#66d9ef">catch</span> (<span style="color:#a6e22e">error</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#75715e">// 目录不存在，创建它
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">fs</span>.<span style="color:#a6e22e">mkdir</span>(<span style="color:#a6e22e">dirPath</span>, { <span style="color:#a6e22e">recursive</span><span style="color:#f92672">:</span> <span style="color:#66d9ef">true</span> }); <span style="color:#75715e">// recursive: true 可以创建多级目录
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">fs</span>.<span style="color:#a6e22e">writeFile</span>(<span style="color:#a6e22e">filePath</span>, <span style="color:#a6e22e">imageBuffer</span>);
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">catch</span> (<span style="color:#a6e22e">error</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">console</span>.<span style="color:#a6e22e">error</span>(<span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">time</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> error </span><span style="color:#e6db74">${</span><span style="color:#a6e22e">id</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> Error saving image to local file:`</span>, <span style="color:#a6e22e">error</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// OneDrive 路由
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">app</span>.<span style="color:#a6e22e">get</span>(<span style="color:#e6db74">&#39;/o/:userid/:pictureid&#39;</span>, <span style="color:#66d9ef">async</span> (<span style="color:#a6e22e">req</span>, <span style="color:#a6e22e">res</span>) =&gt; {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">time</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">getFormattedNow</span>();
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> { <span style="color:#a6e22e">userid</span>, <span style="color:#a6e22e">pictureid</span> } <span style="color:#f92672">=</span> <span style="color:#a6e22e">req</span>.<span style="color:#a6e22e">params</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">filePath</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">path</span>.<span style="color:#a6e22e">join</span>(<span style="color:#a6e22e">__dirname</span>, <span style="color:#e6db74">&#39;o&#39;</span>, <span style="color:#a6e22e">userid</span>, <span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">pictureid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// 检查 user ID 是否在允许的列表中
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span><span style="color:#a6e22e">ALLOWED_USER_IDS</span>.<span style="color:#a6e22e">includes</span>(<span style="color:#a6e22e">userid</span>)) {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">console</span>.<span style="color:#a6e22e">log</span>(<span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">time</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> userid not in </span><span style="color:#e6db74">${</span><span style="color:#a6e22e">userid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">res</span>.<span style="color:#a6e22e">status</span>(<span style="color:#ae81ff">404</span>).<span style="color:#a6e22e">send</span>(<span style="color:#e6db74">&#39;&#39;</span>); <span style="color:#75715e">// Or 403 Forbidden
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">baseOneDriveUrl</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">`https://1drv.ms/i/c/</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">userid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">pictureid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">svgElementSelector</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;[aria-label=&#34;Download&#34;]&#39;</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// 1. 检查本地文件是否存在
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">fs</span>.<span style="color:#a6e22e">access</span>(<span style="color:#a6e22e">filePath</span>); <span style="color:#75715e">// 检查文件是否存在
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            <span style="color:#a6e22e">console</span>.<span style="color:#a6e22e">log</span>(<span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">time</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> 缓存 OneDrive: </span><span style="color:#e6db74">${</span><span style="color:#a6e22e">userid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">pictureid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">imageBuffer</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">fs</span>.<span style="color:#a6e22e">readFile</span>(<span style="color:#a6e22e">filePath</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">res</span>.<span style="color:#a6e22e">writeHead</span>(<span style="color:#ae81ff">200</span>, { <span style="color:#e6db74">&#39;Content-Disposition&#39;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#39;inline&#39;</span> });
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">res</span>.<span style="color:#a6e22e">end</span>(<span style="color:#a6e22e">imageBuffer</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span>;
+</span></span><span style="display:flex;"><span>        } <span style="color:#66d9ef">catch</span> (<span style="color:#a6e22e">error</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#75715e">// 文件不存在，继续从 OneDrive 下载
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// 2. 获取重定向后的 URL
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">async</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">getRedirectedUrl</span>(<span style="color:#a6e22e">url</span>, <span style="color:#a6e22e">time</span>, <span style="color:#a6e22e">userid</span>, <span style="color:#a6e22e">pictureid</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">response</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">axios</span>.<span style="color:#a6e22e">get</span>(<span style="color:#a6e22e">url</span>, {
+</span></span><span style="display:flex;"><span>                    <span style="color:#a6e22e">maxRedirects</span><span style="color:#f92672">:</span> <span style="color:#ae81ff">0</span>,
+</span></span><span style="display:flex;"><span>                    <span style="color:#a6e22e">validateStatus</span><span style="color:#f92672">:</span> <span style="color:#66d9ef">null</span>
+</span></span><span style="display:flex;"><span>                });
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">response</span>.<span style="color:#a6e22e">status</span> <span style="color:#f92672">===</span> <span style="color:#ae81ff">404</span>) {
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;404&#34;</span>; <span style="color:#75715e">// Indicate that the resource was not found
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                } <span style="color:#66d9ef">else</span> <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">response</span>.<span style="color:#a6e22e">status</span> <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">300</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#a6e22e">response</span>.<span style="color:#a6e22e">status</span> <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">400</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#a6e22e">response</span>.<span style="color:#a6e22e">headers</span>.<span style="color:#a6e22e">location</span>) {
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">response</span>.<span style="color:#a6e22e">headers</span>.<span style="color:#a6e22e">location</span>;
+</span></span><span style="display:flex;"><span>                } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>                    <span style="color:#a6e22e">console</span>.<span style="color:#a6e22e">error</span>(<span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">time</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> error </span><span style="color:#e6db74">${</span><span style="color:#a6e22e">userid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">pictureid</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> No redirect found. Status:`</span>, <span style="color:#a6e22e">response</span>.<span style="color:#a6e22e">status</span>);
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">null</span>;
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>            } <span style="color:#66d9ef">catch</span> (<span style="color:#a6e22e">error</span>) {
+</span></span><span style="display:flex;"><span>                <span style="color:#a6e22e">console</span>.<span style="color:#a6e22e">error</span>(<span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">time</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> error </span><span style="color:#e6db74">${</span><span style="color:#a6e22e">userid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">pictureid</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> Error getting redirected URL:`</span>, <span style="color:#a6e22e">error</span>);
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">null</span>;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">redirectedUrl</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">getRedirectedUrl</span>(<span style="color:#a6e22e">baseOneDriveUrl</span>,<span style="color:#a6e22e">time</span>,<span style="color:#a6e22e">userid</span>,<span style="color:#a6e22e">pictureid</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">redirectedUrl</span> <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;404&#34;</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">console</span>.<span style="color:#a6e22e">log</span>(<span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">time</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> 404 </span><span style="color:#e6db74">${</span><span style="color:#a6e22e">userid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">pictureid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">res</span>.<span style="color:#a6e22e">status</span>(<span style="color:#ae81ff">404</span>).<span style="color:#a6e22e">send</span>(<span style="color:#e6db74">&#34;&#34;</span>);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span><span style="color:#a6e22e">redirectedUrl</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">res</span>.<span style="color:#a6e22e">status</span>(<span style="color:#ae81ff">500</span>).<span style="color:#a6e22e">send</span>(<span style="color:#e6db74">&#39;&#39;</span>);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// 3. 使用 Playwright 下载图片
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">imageBuffer</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">downloadImageWithPlaywright</span>(<span style="color:#a6e22e">redirectedUrl</span>, <span style="color:#a6e22e">svgElementSelector</span>, <span style="color:#a6e22e">time</span>, <span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">userid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">pictureid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span><span style="color:#a6e22e">imageBuffer</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">res</span>.<span style="color:#a6e22e">status</span>(<span style="color:#ae81ff">500</span>).<span style="color:#a6e22e">send</span>(<span style="color:#e6db74">&#39;&#39;</span>);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// 4. 保存图片到本地
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">saveImageToLocal</span>(<span style="color:#e6db74">&#39;o&#39;</span>, <span style="color:#a6e22e">path</span>.<span style="color:#a6e22e">join</span>(<span style="color:#a6e22e">userid</span>, <span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">pictureid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>), <span style="color:#a6e22e">imageBuffer</span>, <span style="color:#a6e22e">time</span>, <span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">userid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">pictureid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// 5. 设置响应头并发送图片
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#a6e22e">res</span>.<span style="color:#a6e22e">writeHead</span>(<span style="color:#ae81ff">200</span>, { <span style="color:#e6db74">&#39;Content-Disposition&#39;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#39;inline&#39;</span> });
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">console</span>.<span style="color:#a6e22e">log</span>(<span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">time</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> 未缓存 OneDrive: </span><span style="color:#e6db74">${</span><span style="color:#a6e22e">userid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">pictureid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">res</span>.<span style="color:#a6e22e">end</span>(<span style="color:#a6e22e">imageBuffer</span>);
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">catch</span> (<span style="color:#a6e22e">error</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">console</span>.<span style="color:#a6e22e">error</span>(<span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">time</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> error OneDrive: </span><span style="color:#e6db74">${</span><span style="color:#a6e22e">userid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">/</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">pictureid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>, <span style="color:#a6e22e">error</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">res</span>.<span style="color:#a6e22e">status</span>(<span style="color:#ae81ff">500</span>).<span style="color:#a6e22e">send</span>(<span style="color:#e6db74">&#39;&#39;</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>});
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// Google Drive 路由
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">app</span>.<span style="color:#a6e22e">get</span>(<span style="color:#e6db74">&#39;/g/:fileid&#39;</span>, <span style="color:#66d9ef">async</span> (<span style="color:#a6e22e">req</span>, <span style="color:#a6e22e">res</span>) =&gt; {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">time</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">getFormattedNow</span>();
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> { <span style="color:#a6e22e">fileid</span> } <span style="color:#f92672">=</span> <span style="color:#a6e22e">req</span>.<span style="color:#a6e22e">params</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">filePath</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">path</span>.<span style="color:#a6e22e">join</span>(<span style="color:#a6e22e">__dirname</span>, <span style="color:#e6db74">&#39;g&#39;</span>, <span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">fileid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>); <span style="color:#75715e">// 修改了路径
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">baseGoogleDriveUrl</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">`https://drive.google.com/file/d/</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">fileid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">/view?usp=sharing`</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">svgElementSelector</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;[aria-label=&#34;Download&#34;]&#39;</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// 1. 检查本地文件是否存在
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">fs</span>.<span style="color:#a6e22e">access</span>(<span style="color:#a6e22e">filePath</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">console</span>.<span style="color:#a6e22e">log</span>(<span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">time</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> 缓存 Google Drive: </span><span style="color:#e6db74">${</span><span style="color:#a6e22e">fileid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">imageBuffer</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">fs</span>.<span style="color:#a6e22e">readFile</span>(<span style="color:#a6e22e">filePath</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">res</span>.<span style="color:#a6e22e">writeHead</span>(<span style="color:#ae81ff">200</span>, { <span style="color:#e6db74">&#39;Content-Disposition&#39;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#39;inline&#39;</span> });
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">res</span>.<span style="color:#a6e22e">end</span>(<span style="color:#a6e22e">imageBuffer</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span>;
+</span></span><span style="display:flex;"><span>        } <span style="color:#66d9ef">catch</span> (<span style="color:#a6e22e">error</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#75715e">// 文件不存在，继续从 Google Drive 下载
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// 2. 使用 Playwright 下载图片
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">const</span> <span style="color:#a6e22e">imageBuffer</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">downloadImageWithPlaywright</span>(<span style="color:#a6e22e">baseGoogleDriveUrl</span>, <span style="color:#a6e22e">svgElementSelector</span>, <span style="color:#a6e22e">time</span>, <span style="color:#a6e22e">fileid</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span><span style="color:#a6e22e">imageBuffer</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">res</span>.<span style="color:#a6e22e">status</span>(<span style="color:#ae81ff">500</span>).<span style="color:#a6e22e">send</span>(<span style="color:#e6db74">&#39;&#39;</span>);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// 3. 保存图片到本地
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">await</span> <span style="color:#a6e22e">saveImageToLocal</span>(<span style="color:#e6db74">&#39;g&#39;</span>, <span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">fileid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>, <span style="color:#a6e22e">imageBuffer</span>, <span style="color:#a6e22e">time</span>, <span style="color:#a6e22e">fileid</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// 4. 设置响应头并发送图片
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#a6e22e">res</span>.<span style="color:#a6e22e">writeHead</span>(<span style="color:#ae81ff">200</span>, { <span style="color:#e6db74">&#39;Content-Disposition&#39;</span><span style="color:#f92672">:</span> <span style="color:#e6db74">&#39;inline&#39;</span> });
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">console</span>.<span style="color:#a6e22e">log</span>(<span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">time</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> 未缓存 Google Drive: </span><span style="color:#e6db74">${</span><span style="color:#a6e22e">fileid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">res</span>.<span style="color:#a6e22e">end</span>(<span style="color:#a6e22e">imageBuffer</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">catch</span> (<span style="color:#a6e22e">error</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">console</span>.<span style="color:#a6e22e">error</span>(<span style="color:#e6db74">`</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">time</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> error Google Drive: </span><span style="color:#e6db74">${</span><span style="color:#a6e22e">fileid</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>, <span style="color:#a6e22e">error</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">res</span>.<span style="color:#a6e22e">status</span>(<span style="color:#ae81ff">500</span>).<span style="color:#a6e22e">send</span>(<span style="color:#e6db74">&#39;&#39;</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>});
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// 启动服务器
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">app</span>.<span style="color:#a6e22e">listen</span>(<span style="color:#a6e22e">port</span>, () =&gt; {
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">console</span>.<span style="color:#a6e22e">log</span>(<span style="color:#e6db74">`服务启动 http://localhost:</span><span style="color:#e6db74">${</span><span style="color:#a6e22e">port</span><span style="color:#e6db74">}</span><span style="color:#e6db74">`</span>);
+</span></span><span style="display:flex;"><span>});
+</span></span></code></pre></div><h3 id="dockerfile">Dockerfile<a hidden class="anchor" aria-hidden="true" href="#dockerfile">#</a></h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-Dockerfile" data-lang="Dockerfile"><span style="display:flex;"><span><span style="color:#66d9ef">FROM</span><span style="color:#e6db74"> node</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">RUN</span> mkdir /app<span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">WORKDIR</span><span style="color:#e6db74"> /app</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">RUN</span> chown -R node:node /app<span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">COPY</span> ./files/package.json /app<span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">RUN</span> npm i<span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">RUN</span> npx playwright install-deps<span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">USER</span><span style="color:#e6db74"> node</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">RUN</span> npx playwright install<span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">COPY</span> ./files/app.js /app<span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">CMD</span> [<span style="color:#e6db74">&#34;node&#34;</span>,<span style="color:#e6db74">&#34;./app.js&#34;</span>]<span style="color:#960050;background-color:#1e0010">
+</span></span></span></code></pre></div>
 
   </div>
 
